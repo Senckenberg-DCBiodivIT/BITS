@@ -1,0 +1,41 @@
+{
+    "version": 0.4,
+    "annotation": {
+        "input_file": "csv/short.csv",
+        "output_file": "csv/annotated_short.csv",
+        "perform_export": "False",
+        "perform_validation": "False",
+        "ts_sources": {
+            "explicit_terminologies": [
+                "sweet",
+                "chebi"
+            ],
+            "collection": "False"
+        },
+        "relevant_fields": [
+            "Taxon",
+            "Taxonomie",
+            "Bemerkung Bestimmung",
+            "Bemerkung",
+            "Bemerkung Objekt",
+            "Bemerkung zum Organismus"
+        ],
+        "ignore_cell_value":["-"],
+        "max_iterations": 2
+    },
+    "ai_use": {
+        "spacy": "True",
+        "ollama": "False",
+        "gpt4all": "False",
+        "gpt4all_local": "False"
+    },
+    "web_ui": {
+        "enabled": "True",
+        "port": 5000,
+        "open_browser": "True"
+
+    },
+    "persist_cache": "False",
+    "persist_statistics": "False",
+    "max_threads": 4
+}
