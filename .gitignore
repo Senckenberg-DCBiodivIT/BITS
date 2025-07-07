@@ -1,0 +1,9 @@
+__pycache__
+csv/annotated_*.csv
+error.log
+test.json
+cache.json
+statistics.json
+config_gpt4all.json
+config_gpt4all_local.json
+config_ollama.json
