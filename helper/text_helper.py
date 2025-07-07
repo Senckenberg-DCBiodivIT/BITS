@@ -26,7 +26,7 @@ class TextHelper:
         TextHelper.th_np_collection (set): Collection of noun phrases from all services    
     """
 
-    SIMILARITY_ACK = 0.75
+    SIMILARITY_ACK = 0.90
     th_cells = list()
 
     # SpaCy
