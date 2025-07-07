@@ -19,8 +19,13 @@ class AnnotationHelper:
         Returns:
             Dict[str, Any]: Formatted terminology result containing id, iri, original label, and similarity score
         """
+        # Handle different API response structures:
+        # - OLS4 API uses 'id' field
+        # - TIB API uses 'short_form' field
+        result_id = single_result.get("id") or single_result.get("short_form", "")
+        
         return {
-            "id": single_result["id"],
+            "id": result_id,
             "iri": single_result["iri"],
             "original_label": single_result["label"],
             "similarity": similarity
