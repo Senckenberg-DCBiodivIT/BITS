@@ -1,0 +1,282 @@
+/* Common styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header styles */
+.header {
+    background-color: #003366;
+    color: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 1.8rem;
+}
+
+/* Navigation styles */
+.nav {
+    background-color: #f8f9fa;
+    padding: 0.5rem 2rem;
+    border-bottom: 1px solid #ddd;
+}
+
+.nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 2rem;
+}
+
+.nav a {
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    padding: 0.5rem 0;
+    position: relative;
+}
+
+.nav a:hover::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: #003366;
+}
+
+/* Main content styles */
+.main-content {
+    flex: 1;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+/* Footer styles */
+.footer {
+    background-color: #f8f9fa;
+    padding: 1rem 2rem;
+    text-align: center;
+    border-top: 1px solid #ddd;
+    margin-top: auto;
+}
+
+/* Container styles */
+.container {
+    display: block;
+    gap: 20px;
+    margin-bottom: 2rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Form elements */
+textarea {
+    width: 100%;
+    height: 200px;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+button {
+    padding: 10px 20px;
+    background-color: #003366;
+    color: white;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #004488;
+}
+
+/* Entry and container styles */
+.entry {
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+.sub-entry {
+    margin-left: 20px;
+    padding: 5px;
+    border-left: 2px solid #ddd;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Annotation specific styles */
+#noun-groups-container,
+#annotated-groups-container,
+#container_performed_annotation {
+    flex: 1;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: white;
+}
+
+#container_performed_annotation {
+    overflow-x: auto;
+}
+
+#container_performed_annotation .entry {
+    white-space: pre-wrap;
+    font-family: monospace;
+    margin: 5px 0;
+    padding: 8px;
+    background-color: #f5f5f5;
+    border-radius: 3px;
+    overflow-x: auto;
+}
+
+/* Output styles */
+#output {
+    margin-top: 20px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    min-height: 100px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+#output pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-family: monospace;
+}
+
+/* Annotation link and tooltip styles */
+.annotation-link {
+    color: #0066cc;
+    text-decoration: none;
+    cursor: help;
+    display: inline-block;
+    padding: 0 4px;
+    margin: 0;
+    background-color: #e8f0fe;
+    border-radius: 3px;
+    max-width: fit-content;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: normal;
+    vertical-align: text-bottom;
+    font-size: inherit;
+}
+
+.annotation-link:hover {
+    background-color: #d0e0fc;
+}
+
+.tooltip {
+    display: none;
+    position: absolute;
+    background: #333;
+    color: white;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    max-width: 300px;
+    z-index: 1000;
+    white-space: pre-wrap;
+    font-family: monospace;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+/* Terminology Selection Styles */
+.terminology-selection {
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #fff;
+}
+
+.terminology-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #eee;
+    background-color: #fafafa;
+}
+
+.terminology-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--grid-columns, 3), 1fr); /* Default 3 columns, can be changed via JS */
+    gap: 10px;
+    padding: 10px;
+}
+
+.terminology-item {
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+}
+
+.terminology-item:hover {
+    background-color: #e9e9e9;
+}
+
+.terminology-item label {
+    margin-left: 8px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Update button styling to match existing theme */
+.terminology-selection button {
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.terminology-selection button:hover {
+    background-color: #45a049;
+}
+
+.terminology-stats {
+    margin-left: 15px;
+    display: inline-block;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.terminology-controls {
+    display: flex;
+    align-items: center;
+    margin-top: 10px;
+} 

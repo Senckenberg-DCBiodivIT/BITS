@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGN Annotation Tool</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <header class="header">
+        <h1>SGN Annotation Tool</h1>
+    </header>
+
+    <nav class="nav">
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/interactive">Interactive Annotation</a></li>
+            <li><a href="/about">About</a></li>
+            <!-- <li><a href="/results">Results</a></li> -->
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <h2>Interactive Text Annotation</h2>
+        
+        <div class="terminology-selection">
+            <h3>Select Terminologies</h3>
+            <div id="terminology-list" class="terminology-list">
+                <!-- Terminologies will be loaded here in a grid layout -->
+            </div>
+            <div class="terminology-controls">
+                <button onclick="updateTerminologies()">Update Selection</button>
+                <span id="terminology-stats" class="terminology-stats">0/0 terminologies selected</span>
+            </div>
+        </div>
+
+        <div class="container">
+            <textarea id="inputText" placeholder="Enter your text here..."></textarea>
+            <button onclick="annotateContent()">Annotate Content</button>
+            <div id="np_collection">
+                <p>Recognized NP collection will appear here...</p>
+            </div>
+            <div id="np_annotation">
+                <p>Raw annotation will appear here...</p>
+            </div>
+            <div id="output">
+                <p>Processed content will appear here...</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>© 2024 Senckenberg Gesellschaft für Naturforschung (SGN). All rights reserved.</p>
+    </footer>
+
+    <script>
+        const GRID_COLUMNS = 5;
+        let totalTerminologies = 0; // Variable to store total count
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.documentElement.style.setProperty('--grid-columns', GRID_COLUMNS);
+            loadTerminologies();
+        });
+
+        function updateTerminologyStats() {
+            const selected = document.querySelectorAll('input[name="terminology"]:checked').length;
+            const statsElement = document.getElementById('terminology-stats');
+            statsElement.textContent = `${selected}/${totalTerminologies} terminologies selected`;
+        }
+
+        function loadTerminologies() {
+            fetch('/api/get_terminologies')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('terminology-list');
+                    if (data.terminologies) {
+                        totalTerminologies = data.terminologies.length; // Store total count
+                        container.innerHTML = `
+                            <div class="terminology-grid">
+                                ${data.terminologies.map(term => `
+                                    <div class="terminology-item">
+                                        <input type="checkbox" 
+                                               id="${term}" 
+                                               name="terminology" 
+                                               value="${term}"
+                                               onchange="updateTerminologyStats()">
+                                        <label for="${term}" title="${term}">${term}</label>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                        updateTerminologyStats(); // Initialize stats
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading terminologies:', error);
+                    container.innerHTML = '<p class="error">Error loading terminologies</p>';
+                });
+        }
+
+        function updateTerminologies() {
+            const selected = Array.from(document.querySelectorAll('input[name="terminology"]:checked'))
+                .map(cb => cb.value);
+            
+            fetch('/api/update_terminologies', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ selected: selected })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert('Terminology selection updated successfully');
+                    } else {
+                        alert('Error updating terminology selection');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error updating terminology selection');
+                });
+        }
+
+        function formatTaxonField(text) {
+            // Pattern für Top-Level Key-Value Paare mit verschachtelten Strukturen
+            return text.replace(/{'([^']+)':\s*({(?:{[^}]*}|[^}])*})}/g, (match, key, details) => {
+                try {
+                    // Details in gültiges JSON umwandeln
+                    const cleanDetails = details
+                        .replace(/'/g, '"')
+                        .replace(/([{,]\s*)([a-zA-Z_\s]+):/g, '$1"$2":');
+                    
+                    const detailsObj = JSON.parse(cleanDetails);
+                    const tooltipId = 'tooltip-' + Math.random().toString(36).substr(2, 9);
+                    const tooltipContent = JSON.stringify(detailsObj, null, 2)
+                        .replace(/"/g, '&quot;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+
+                    return `<span class="annotation-link" 
+                                 onmouseover="showTooltip('${tooltipId}')" 
+                                 onmouseout="hideTooltip('${tooltipId}')">${key}
+                                <span id="${tooltipId}" class="tooltip">${tooltipContent}</span></span>`;
+                } catch (e) {
+                    console.error('Error parsing details:', e);
+                    return match;
+                }
+            });
+        }
+
+        function showTooltip(id) {
+            const tooltip = document.getElementById(id);
+            if (tooltip) {
+                tooltip.style.display = 'block';
+                const updatePosition = function(e) {
+                    tooltip.style.left = (e.pageX + 10) + 'px';
+                    tooltip.style.top = (e.pageY + 10) + 'px';
+                };
+                document.addEventListener('mousemove', updatePosition);
+                tooltip.addEventListener('mouseout', function() {
+                    document.removeEventListener('mousemove', updatePosition);
+                });
+            }
+        }
+
+        function hideTooltip(id) {
+            const tooltip = document.getElementById(id);
+            if (tooltip) {
+                tooltip.style.display = 'none';
+            }
+        }
+
+        function annotateContent() {
+            const text = document.getElementById('inputText').value;
+            fetch('/annotate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    // Entferne äußere Anführungszeichen und Escape-Zeichen
+                    let content = data.content;
+                    if (typeof content === 'string') {
+                        content = content
+                            .replace(/^"/, '')
+                            .replace(/"$/, '')
+                            .replace(/\\"/g, '"')
+                            .replace(/\\n/g, '\n');
+                    }
+                    
+                    // Formatiere den Content
+                    const formattedContent = formatTaxonField(content);
+                    document.getElementById('output').innerHTML = `<div>${formattedContent}</div>`;
+                    
+                    // Format np_collection
+                    document.getElementById('np_collection').innerHTML = 
+                        `<pre>Recognized NP collection: ${JSON.stringify(data.np_collection, null, 2)}</pre>`;
+                    
+                    // Format np_annotation
+                    document.getElementById('np_annotation').innerHTML = 
+                        `<pre>Raw annotation: ${JSON.stringify(data.content, null, 2)}</pre>`;
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+    </script>
+</body>
+
+</html>

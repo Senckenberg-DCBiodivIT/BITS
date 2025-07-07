@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SGN Annotation Tool</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <header class="header">
+        <h1>SGN Annotation Tool</h1>
+    </header>
+
+    <nav class="nav">
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/interactive">Interactive Annotation</a></li>
+            <li><a href="/about">About</a></li>
+            <!-- <li><a href="/results">Results</a></li> -->
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <h1>Welcome to SGN Annotation Tool</h1>
+        <h3>Here you see recognized noun groups, subgroups and single nouns, we will try to annotate in the next steps:</h3>
+
+        <div class="container">
+            <div id="noun-groups-container">
+                <h3>Noun Groups</h3>
+                {% for item in noun_groups %}
+                    <p class="entry">{{ item }}</p>
+                {% endfor %}
+            </div>
+        </div>
+        <br>
+
+        <div class="container">
+            <div id="annotated-groups-container">
+                <h3>Annotated Noun Groups</h3>
+                {% for key, value in annotated_noun_groups.items() %}
+                    <div class="entry">
+                        <strong>{{ key }}</strong>
+                        {% if value is mapping %}
+                            <div class="sub-entry">
+                            {% for sub_key, sub_value in value.items() %}
+                                <div>
+                                    <strong>{{ sub_key }}</strong>:
+                                    {% if sub_value is mapping %}
+                                        <div class="sub-entry">
+                                        {% for k, v in sub_value.items() %}
+                                            <div><strong>{{ k }}</strong>: {{ v }}</div>
+                                        {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        {{ sub_value }}
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                            </div>
+                        {% else %}
+                            : {{ value }}
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <br>
+
+        <div class="container">
+            <div id="container_performed_annotation">
+                <h3>Performed Annotation</h3>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>© 2024 Senckenberg Gesellschaft für Naturforschung (SGN). All rights reserved.</p>
+    </footer>
+
+    <script>
+        function formatValue(value, depth = 0) {
+            if (typeof value === 'object' && value !== null) {
+                const indent = '  '.repeat(depth);
+                return Object.entries(value)
+                    .map(([k, v]) => {
+                        let formattedValue;
+                        if (k === 'iri') {
+                            formattedValue = `<a href="${v}" target="_blank">${v}</a>`;
+                        } else if (typeof v === 'object' && v !== null) {
+                            formattedValue = `<div class="sub-entry">${formatValue(v, depth + 1)}</div>`;
+                        } else {
+                            formattedValue = v;
+                        }
+                        return `<div class="sub-entry"><strong>${k}</strong>: ${formattedValue}</div>`;
+                    })
+                    .join('');
+            }
+            return value;
+        }
+
+        function formatTaxonString(taxonStr) {
+            // Updated regex to handle multi-word keys
+            return taxonStr.replace(/{\'([^\']+)\':\s*({[^}]+})}/g, (match, key, details) => {
+                try {
+                    const cleanDetails = details
+                        .replace(/\'/g, '"')
+                        .replace(/([{,]\s*)([a-zA-Z_\s]+):/g, '$1"$2":');
+                    
+                    const detailsObj = JSON.parse(cleanDetails);
+                    const tooltipContent = JSON.stringify(detailsObj, null, 2)
+                        .replace(/"/g, '&quot;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+                    
+                    return `<a class="annotation-link" title="${tooltipContent}">${key}</a>`;
+                } catch (e) {
+                    console.error('Error parsing details:', e);
+                    return match;
+                }
+            });
+        }
+
+        function formatTaxonField(taxonStr) {
+            return taxonStr.replace(/{'([^']+)':\s*({(?:{[^}]*}|[^}])*})}/g, (match, key, details) => {
+                const tooltipId = 'tooltip-' + Math.random().toString(36).substr(2, 9);
+                const trimmedKey = key.trim().replace(/\s+$/, '');
+                return `<span class="annotation-link" 
+                             onmouseover="showTooltip('${tooltipId}')" 
+                             onmouseout="hideTooltip('${tooltipId}')">${trimmedKey}
+                        <span id="${tooltipId}" class="tooltip">${details.trim()}</span></span>`;
+            });
+        }
+
+        function showTooltip(id) {
+            const tooltip = document.getElementById(id);
+            if (tooltip) {
+                tooltip.style.display = 'block';
+                document.addEventListener('mousemove', function(e) {
+                    if (tooltip.style.display === 'block') {
+                        tooltip.style.left = (e.pageX + 10) + 'px';
+                        tooltip.style.top = (e.pageY + 10) + 'px';
+                    }
+                });
+            }
+        }
+
+        function hideTooltip(id) {
+            const tooltip = document.getElementById(id);
+            if (tooltip) {
+                tooltip.style.display = 'none';
+            }
+        }
+
+        function formatPerformedAnnotation(item) {
+            let obj;
+            try {
+                // Wenn item bereits ein Objekt ist
+                obj = typeof item === 'string' ? JSON.parse(item) : item;
+                
+                // Kopiere das Objekt um das Original nicht zu verändern
+                const formattedObj = {...obj};
+                
+                // Formatiere nur das Taxon-Feld
+                if (formattedObj.Taxon) {
+                    formattedObj.Taxon = formatTaxonField(formattedObj.Taxon);
+                }
+                
+                // Erstelle HTML-Darstellung des Objekts
+                const entries = Object.entries(formattedObj).map(([key, value]) => {
+                    return `  "${key}": ${typeof value === 'string' ? `"${value}"` : value}`;
+                });
+                
+                return `{\n${entries.join(',\n')}\n}`;
+                
+            } catch (e) {
+                console.error('Error formatting annotation:', e);
+                return JSON.stringify(item, null, 2);
+            }
+        }
+
+        function updateDisplay(data) {
+            // Update noun_groups (Set)
+            const nounContainer = document.getElementById('noun-groups-container');
+            nounContainer.innerHTML = '<h3>Noun Groups:</h3>';
+            data.noun_groups.forEach(item => {
+                const p = document.createElement('p');
+                p.className = 'entry';
+                p.textContent = item;
+                nounContainer.appendChild(p);
+            });
+
+            // Update annotated_groups (Dictionary mit verschachtelten Objekten)
+            const annotatedContainer = document.getElementById('annotated-groups-container');
+            annotatedContainer.innerHTML = '<h3>Annotated Groups:</h3>';
+            Object.entries(data.annotated_noun_groups).forEach(([key, value]) => {
+                const div = document.createElement('div');
+                div.className = 'entry';
+                div.innerHTML = `<strong>${key}</strong>${formatValue(value)}`;
+                annotatedContainer.appendChild(div);
+            });
+
+            // Update performed_annotation
+            const performedContainer = document.getElementById('container_performed_annotation');
+            performedContainer.innerHTML = '<h3>Performed Annotation:</h3>';
+            
+            if (Array.isArray(data.performed_annotation)) {
+                data.performed_annotation.forEach(item => {
+                    const p = document.createElement('p');
+                    p.className = 'entry';
+                    p.innerHTML = formatPerformedAnnotation(item);
+                    performedContainer.appendChild(p);
+                });
+            }
+        }
+
+        function updateData() {
+            fetch('/api/get_csv_data')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Fetched data:', data);
+                    updateDisplay(data);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // Aktualisierung alle 5 Sekunden
+        setInterval(updateData, 5000);
+
+        // Erste Aktualisierung beim Laden
+        document.addEventListener('DOMContentLoaded', updateData);
+    </script>
+</body>
+
+</html>
