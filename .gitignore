@@ -1,4 +1,5 @@
 __pycache__
+/confidential/
 csv/annotated_*.csv
 error.log
 test.json
