@@ -19,8 +19,8 @@ class BitsHelper:
     """
 
     bh_request_results: dict[str, dict[str, dict]] = dict()
-    __TIB_URL = "https://service.tib.eu/ts4tib/api/"
-    __TIB_URL_SEARCH = "https://service.tib.eu/ts4tib/api/search?"
+    __TIB_URL = "https://api.terminology.tib.eu/api/v2/"
+    __TIB_URL_SEARCH = "https://api.terminology.tib.eu/api/search?"
 
     __ONTOLOGY_SIZE = 1000
 
@@ -222,20 +222,20 @@ class BitsHelper:
 
     def bh_request_terminology_names(self) -> list:
         """
-        Request list of available terminologies from OLS4.
+        Request list of available terminologies from TIB API.
         
         Returns:
-            list: List of terminology names that are available in OLS4
+            list: List of terminology names that are available in TIB API
         """
         logging.debug("BitsHelper, start terminology names requesting")
         url = self.__TIB_URL + f'ontologies?size={self.__ONTOLOGY_SIZE}'
         response = self.__perform_query(url)
         
-        if "_embedded" not in response.keys():
+        if "elements" not in response.keys():
             return []
         
         terminologies = []
-        for ontology in response["_embedded"]["ontologies"]:
+        for ontology in response["elements"]:
             if "ontologyId" in ontology.keys():
                 terminologies.append(ontology["ontologyId"])
         
