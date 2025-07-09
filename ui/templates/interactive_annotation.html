@@ -31,7 +31,6 @@
                 <!-- Terminologies will be loaded here in a grid layout -->
             </div>
             <div class="terminology-controls">
-                <button onclick="updateTerminologies()">Update Selection</button>
                 <span id="terminology-stats" class="terminology-stats">0/0 terminologies selected</span>
             </div>
         </div>
@@ -70,6 +69,11 @@
             statsElement.textContent = `${selected}/${totalTerminologies} terminologies selected`;
         }
 
+        function handleTerminologyChange() {
+            updateTerminologyStats();
+            updateTerminologies();
+        }
+
         function loadTerminologies() {
             fetch('/api/get_terminologies')
                 .then(response => response.json())
@@ -85,7 +89,7 @@
                                                id="${term}" 
                                                name="terminology" 
                                                value="${term}"
-                                               onchange="updateTerminologyStats()">
+                                               onchange="handleTerminologyChange()">
                                         <label for="${term}" title="${term}">${term}</label>
                                     </div>
                                 `).join('')}
@@ -114,14 +118,13 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.status === 'success') {
-                        alert('Terminology selection updated successfully');
+                        console.log('Terminology selection updated successfully');
                     } else {
-                        alert('Error updating terminology selection');
+                        console.error('Error updating terminology selection');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('Error updating terminology selection');
                 });
         }
 
