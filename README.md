@@ -1,4 +1,4 @@
-# BITS, SGN Annotation Tool
+# FAIRenrich
 A comprehensive system for text processing and terminology annotation using multiple AI services and the TIB terminology service. The tool supports both batch processing of CSV files and interactive web-based annotation.
 
 ## Features
