@@ -35,7 +35,7 @@
         "open_browser": "True"
 
     },
-    "persist_cache": "False",
+    "persist_cache": "True",
     "persist_statistics": "False",
     "max_threads": 4
 }

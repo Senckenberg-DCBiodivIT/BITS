@@ -34,7 +34,7 @@ class Cache:
 
     def __init__(self):
         """Initialize the cache and load existing cache data from file if available."""
-        self.__load_cache()
+        #self.__load_cache() # TODO: Enable Cache later, after all kinds of requests are implemented
 
     def __check_create_terminology_in_cache(self, obj: dict, name: str) -> None:
         """Ensure a terminology key exists in the cache dictionary.
