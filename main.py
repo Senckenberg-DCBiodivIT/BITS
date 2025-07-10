@@ -70,7 +70,9 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
 
         # Load configuration settings
         self.explicit_terminologies = self.config["annotation"]["ts_sources"]["explicit_terminologies"]
-        self.bits_ts_collection = self.config["annotation"]["ts_sources"]["collection"]
+        self.use_collection = self.config["annotation"]["ts_sources"]["collection"]
+        self.use_all_ts = not self.explicit_terminologies and not self.use_collection
+
         self.ignore_cell_value = self.config["annotation"]["ignore_cell_value"]
         self.relevant_fields = self.config["annotation"]["relevant_fields"]
         self.max_iterations = self.config["annotation"]["max_iterations"]
@@ -136,10 +138,10 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         # Handle BITS requests
         if self.explicit_terminologies != False:
             self.bh_request("explicit_terminologies", 50000)
-        if self.bits_ts_collection != False:
-            self.bh_request("collection", 50000)
-        if not self.explicit_terminologies and not self.bits_ts_collection:
-            self.bh_request("complete", 50000)
+        elif self.use_collection != False:
+            self.bh_request("use_collection", 50000)
+        elif self.use_all_ts:
+            self.bh_request("use_all_ts", 50000)
 
         # Annotate
         self.ah_annotate_dataset()
