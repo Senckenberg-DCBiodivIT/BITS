@@ -1,4 +1,4 @@
-# FAIRenrich
+# FAIRenrich - FAIR Enrichment and Curation for ESS and Biodiversity Data
 A comprehensive system for text processing and terminology annotation using multiple AI services and the TIB terminology service. The tool supports both batch processing of CSV files and interactive web-based annotation.
 
 ## Features
@@ -15,7 +15,34 @@ A comprehensive system for text processing and terminology annotation using mult
 - Batch processing of CSV files
 - Support for multiple terminology sources and collections
 
-##### Configuration
+## Documentation
+
+The project follows comprehensive documentation standards:
+
+### Code Documentation
+- **Module-level docstrings**: Each module includes detailed descriptions of its purpose, functionality, and dependencies
+- **Class docstrings**: All classes have comprehensive documentation including attributes, methods, and usage examples
+- **Method docstrings**: All methods include detailed parameter descriptions, return values, and examples
+- **Type hints**: Full type annotation support for better code understanding and IDE support
+
+### Documentation Standards
+- **Google-style docstrings**: Consistent formatting across all modules
+- **Examples**: Code examples in docstrings for complex methods
+- **Error handling**: Documentation of exceptions and error conditions
+- **Dependencies**: Clear documentation of required packages and setup instructions
+
+### Key Modules
+- `main.py`: Main entry point and workflow orchestration
+- `helper/text_helper.py`: Text processing and noun phrase recognition
+- `helper/bits_helper.py`: Terminology service integration
+- `helper/annotation_helper.py`: Annotation processing and result formatting
+- `helper/file_handler.py`: File I/O and configuration management
+- `helper/cache.py`: Thread-safe caching system
+- `helper/statistics_helper.py`: Statistics collection and reporting
+- `helper/validator.py`: Data validation and integrity checking
+- `ui/web_ui.py`: Web interface and API endpoints
+
+## Configuration
 
 ### Main Configuration (config.json)
 
@@ -138,3 +165,21 @@ When configured, the system generates:
 ## Development Status
 
 Current as of 2025-03-20. Features and configurations may change in future updates.
+
+## Contributing
+
+When contributing to this project, please ensure:
+
+1. **Documentation**: All new code includes comprehensive docstrings
+2. **Type hints**: Use type annotations for all function parameters and return values
+3. **Examples**: Include usage examples in docstrings for complex methods
+4. **Error handling**: Document exceptions and error conditions
+5. **Testing**: Add tests for new functionality
+
+### Documentation Standards
+
+- Use Google-style docstrings
+- Include parameter types and descriptions
+- Document return values and exceptions
+- Provide usage examples for complex methods
+- Maintain consistency across all modules

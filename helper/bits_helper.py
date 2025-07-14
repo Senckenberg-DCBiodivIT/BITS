@@ -1,24 +1,49 @@
 """
-BitsHelper module for handling terminology requests and annotations using the TIB API.
-This module provides functionality to search and match terms against various terminologies
-using semantic similarity matching.
+BitsHelper Module
+
+This module provides functionality for handling terminology requests and annotations
+using the TIB API. It manages semantic similarity matching against various
+terminologies and supports different request types including explicit terminologies,
+collections, and complete terminology searches.
+
+The module integrates with the TIB terminology service API to perform semantic
+matching and provides caching capabilities for improved performance.
+
+Classes:
+    BitsHelper: Main class for terminology requests and semantic matching
 """
+
 import requests
 import logging
 import time
+from typing import Dict, Any, List, Set
 
 
 class BitsHelper:
     """
     A helper class for managing terminology requests and semantic matching.
     
+    This class provides functionality to search and match terms against various
+    terminologies using semantic similarity matching. It supports multiple request
+    types and integrates with the TIB terminology service API.
+    
+    The class handles:
+    - Explicit terminology searches
+    - Collection-based searches
+    - Complete terminology searches
+    - Semantic similarity matching using SpaCy
+    - Caching of query results
+    
     Attributes:
-        bh_request_results (dict): A nested dictionary storing request results in the format:
+        bh_request_results (Dict[str, Dict[str, Dict]]): A nested dictionary storing
+            request results in the format:
             {term: {terminology_name: {id, iri, original_label, similarity}}}
-        __TIB_URL_SEARCH (str): Base URL for the TIB terminology service API
+        __TIB_URL (str): Base URL for the TIB terminology service API
+        __TIB_URL_SEARCH (str): Search endpoint URL for the TIB API
+        __ONTOLOGY_SIZE (int): Maximum number of ontologies to retrieve
     """
 
-    bh_request_results: dict[str, dict[str, dict]] = dict()
+    bh_request_results: Dict[str, Dict[str, Dict]] = dict()
     __TIB_URL = "https://api.terminology.tib.eu/api/v2/"
     __TIB_URL_SEARCH = "https://api.terminology.tib.eu/api/search?"
 
@@ -27,13 +52,22 @@ class BitsHelper:
     def bh_request(self, kind: str, number_results: int = 30000) -> None:
         """
         Initiates terminology requests based on the specified kind.
-
+        
+        This method orchestrates different types of terminology requests:
+        - explicit_terminologies: Search in specific terminologies
+        - use_collection: Search in the specified collection
+        - use_all_ts: Perform complete search across all terminologies
+        
         Args:
             kind (str): Type of request to perform. Valid values are:
                 - "explicit_terminologies": Search in specific terminologies
                 - "use_collection": Search in the specified collection
                 - "use_all_ts": Perform complete search
-            number_results (int, optional): Maximum number of results to return. Defaults to 30000.
+            number_results (int, optional): Maximum number of results to return.
+                Defaults to 30000.
+                
+        Raises:
+            ValueError: If an invalid request kind is specified
         """
          
         logging.debug(f"BitsHelper, start {kind} requesting")
@@ -48,41 +82,68 @@ class BitsHelper:
         elif kind == "use_all_ts":
             self.__bh_request_complete()
 
+        else:
+            raise ValueError(f"Invalid request kind: {kind}")
+
         print(f"BitsHelper, requests are done in {
               time.time() - bh_start_time}")
 
-    def __perform_query(self, url: str) -> dict:
+    def __perform_query(self, url: str) -> Dict[str, Any]:
         """
         Performs HTTP GET request to the TIB API and processes the response.
-        """
-        headers = {'user-agent': 'my-app/0.0.1'}
-        params = {'key': 'value'}
-
-        response_json = requests.get(
-            url, headers=headers, params=params).json()
-        if response_json:
-            return response_json
-        else:
-            return dict()   
-
-
-    def __perform_query_search(self, url: str) -> dict:
-        """
-        Performs HTTP GET request to the TIB API and processes the response.
-
+        
+        This method handles basic API queries to the TIB terminology service.
+        It includes proper error handling and returns structured response data.
+        
         Args:
             url (str): The complete URL for the API request
-
+            
         Returns:
-            dict: Response data containing matching results, or empty dict if no matches found
+            Dict[str, Any]: Response data from the API, or empty dict if request fails
+            
+        Note:
+            Uses a simple user-agent header for API requests
         """
-
         headers = {'user-agent': 'my-app/0.0.1'}
         params = {'key': 'value'}
 
+        try:
+            response_json = requests.get(
+                url, headers=headers, params=params).json()
+            if response_json:
+                return response_json
+            else:
+                return dict()
+        except Exception as e:
+            logging.error(f"Error performing query to {url}: {e}")
+            return dict()
+
+    def __perform_query_search(self, url: str) -> Dict[str, Any]:
+        """
+        Performs HTTP GET request to the TIB API search endpoint and processes the response.
+        
+        This method handles search-specific API queries and includes detailed
+        response processing for search results. It handles the specific response
+        structure of the search endpoint.
+        
+        Args:
+            url (str): The complete URL for the API search request
+
+        Returns:
+            Dict[str, Any]: Response data containing matching results, or empty dict
+                if no matches found or request fails
+        """
+        headers = {'user-agent': 'my-app/0.0.1'}
+        params = {'key': 'value'}
+
+        try:
+            response_json = requests.get(
+                url, headers=headers, params=params).json()
+        except Exception as e:
+            logging.error(f"Error performing search query to {url}: {e}")
+            return dict()
+
         # dict_keys(['responseHeader', 'response', 'facet_counts', 'highlighting'])
-        response_json = requests.get(
-            url, headers=headers, params=params).json()
         # logging.debug(f"__perform_query_search, response_json is\n{response_json}")
 
         # print("\nresponseHeader")
@@ -106,19 +167,28 @@ class BitsHelper:
             print("\n"*4)
             return dict()
 
-    def __create_item_results_from_query(self, query_result: dict, item_normalized: str, 
-                                       result_temp: dict, terminology_name: str) -> dict:
+    def __create_item_results_from_query(self, query_result: Dict[str, Any], item_normalized: str, 
+                                       result_temp: Dict[str, Any], terminology_name: str) -> Dict[str, Any]:
         """
         Processes query results and creates terminology matches based on similarity threshold.
-
+        
+        This method processes raw API query results and applies semantic similarity
+        matching using SpaCy. It filters results based on a similarity threshold
+        and creates standardized terminology result objects.
+        
         Args:
-            query_result (dict): Raw query results from the TIB API
+            query_result (Dict[str, Any]): Raw query results from the TIB API
             item_normalized (str): Normalized form of the search term
-            result_temp (dict): Temporary storage for results
+            result_temp (Dict[str, Any]): Temporary storage for results
             terminology_name (str): Name of the terminology being searched
 
         Returns:
-            dict: Updated result_temp dictionary with new matches that meet the similarity threshold
+            Dict[str, Any]: Updated result_temp dictionary with new matches that
+                meet the similarity threshold
+                
+        Note:
+            Uses English SpaCy model for similarity checking, which works well
+            for both English and German terms
         """
         # logging.info(
         #     f"__create_item_results_from_query for {item_normalized} and result: {query_result}")
@@ -160,17 +230,24 @@ class BitsHelper:
 
         return result_temp
 
-    def bh_request_explicit_terminologies(self, np_collection: set[str]) -> any:
+    def bh_request_explicit_terminologies(self, np_collection: Set[str]) -> Dict[str, Dict[str, Dict]]:
         """
         Processes requests for explicitly specified terminologies.
         
-        For each term in the collection:
+        This method handles terminology searches for a specific set of noun phrases
+        against explicitly configured terminologies. For each term in the collection:
         1. Normalizes the term
         2. Checks cache for existing results
         3. Performs API query if needed
         4. Processes results and stores matches that meet similarity threshold
+        
+        Args:
+            np_collection (Set[str]): Collection of noun phrases to search for
+            
+        Returns:
+            Dict[str, Dict[str, Dict]]: Dictionary containing search results for each
+                noun phrase, organized by terminology
         """
-
         for item in np_collection:
             item_normalized = item.strip().lower()
             self.sh_set_np(item, item_normalized)
@@ -211,16 +288,24 @@ class BitsHelper:
 
         return BitsHelper.bh_request_results # For the WebUI or in general for the external requests
 
-    def __bh_request_all_terminologies(self, np_collection: set[str]) -> any:
+    def __bh_request_all_terminologies(self, np_collection: Set[str]) -> Dict[str, Dict[str, Dict]]:
         """
         Processes requests for all terminologies.
         
-        For each term in the collection:
+        This method performs comprehensive terminology searches across all available
+        terminologies in the TIB API. For each term in the collection:
         1. Normalizes the term
         2. Checks cache for existing results using the key __ALL_TS_KEY
         3. Performs API query if needed
         4. Processes results and stores matches that meet similarity threshold
         5. Store the results in the cache using the key __ALL_TS_KEY
+        
+        Args:
+            np_collection (Set[str]): Collection of noun phrases to search for
+            
+        Returns:
+            Dict[str, Dict[str, Dict]]: Dictionary containing search results for each
+                noun phrase across all terminologies
         """
         for item in np_collection:
             item_normalized = item.strip().lower()
@@ -259,15 +344,22 @@ class BitsHelper:
     def __bh_request_collection(self) -> None:
         """
         Placeholder for collection request implementation.
+        
+        This method is intended for future implementation of collection-based
+        terminology searches. Currently serves as a placeholder.
         """
         pass
 
-    def bh_request_terminology_names(self) -> list:
+    def bh_request_terminology_names(self) -> List[str]:
         """
         Request list of available terminologies from TIB API.
         
+        This method queries the TIB API to retrieve a list of all available
+        terminologies/ontologies that can be used for searches.
+        
         Returns:
-            list: List of terminology names that are available in TIB API
+            List[str]: List of terminology names that are available in TIB API,
+                sorted alphabetically
         """
         logging.debug("BitsHelper, start terminology names requesting")
         url = self.__TIB_URL + f'ontologies?size={self.__ONTOLOGY_SIZE}'
