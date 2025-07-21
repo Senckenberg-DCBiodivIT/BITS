@@ -80,7 +80,7 @@ class BitsHelper:
             self.__bh_request_collection()
 
         elif kind == "use_all_ts":
-            self.__bh_request_complete()
+            self.__bh_request_all_terminologies(self.__class__.th_np_collection)
 
         else:
             raise ValueError(f"Invalid request kind: {kind}")
@@ -168,7 +168,7 @@ class BitsHelper:
             return dict()
 
     def __create_item_results_from_query(self, query_result: Dict[str, Any], item_normalized: str, 
-                                       result_temp: Dict[str, Any], terminology_name: str) -> Dict[str, Any]:
+                                       result_temp: Dict[str, Any], terminology_name: str = "") -> Dict[str, Any]:
         """
         Processes query results and creates terminology matches based on similarity threshold.
         
@@ -204,26 +204,23 @@ class BitsHelper:
 
                 label = self.SPACY_HANDLER[language](
                     single_result["label"].lower())
+                # print(f"single_result: {single_result}")
 
-                similarity_factor = item_normalized_similarity.similarity(
+                # If we have a terminology name, we can check if the result is already in the result_temp
+                # If there is no specific terminology name, we have to use each result for each terminology.
+                if (terminology_name != "" and terminology_name in result_temp.keys()) or terminology_name == "":
+                    terminology_name_single_result = terminology_name if terminology_name != "" else single_result["ontology_name"]
+                    similarity_factor = item_normalized_similarity.similarity(
                     label)
-
-                # print(f"Similarity: {similarity_factor}")
-                if similarity_factor >= self.SIMILARITY_ACK:
-                    # print("similarity_factor ok")
-
-                    if terminology_name in result_temp.keys():
-                        # print("Update result")
-                        # Need for an result update?
-                        if result_temp[terminology_name]["similarity"] < similarity_factor:
-                            result_temp[terminology_name] = self.ah_create_terminology_result(
+                    # print(f"Similarity: {similarity_factor}")
+                    
+                    if similarity_factor >= self.SIMILARITY_ACK:
+                        # print("similarity_factor ok")
+                        # Check if we need to update an existing result or create a new one
+                        existing_result = result_temp.get(terminology_name_single_result)
+                        if existing_result is None or existing_result["similarity"] < similarity_factor:
+                            result_temp[terminology_name_single_result] = self.ah_create_terminology_result(
                                 single_result, similarity_factor)
-
-                    # No update necessary, just use the result and set in cache
-                    else:
-                        # print("Set new result")
-                        result_temp[terminology_name] = self.ah_create_terminology_result(
-                            single_result, similarity_factor)
 
         else:
             pass  # Here it's about a helper like "query_time" or other results, we can't use for an annotation. Just ignore them
@@ -329,13 +326,12 @@ class BitsHelper:
                 # logging.debug(f"bh_request_all_terminologies, url, handler: {url}")   
                 query_result = self.__perform_query_search(url)
 
-                print(f"\n\nquery_result: {query_result}\n\n")
                 # self.cache_set_query_item(  TODO: Enable Cache later, after all kinds of requests are implemented
                 #     self.CACHE_KEY_ALL_TS, item_normalized, query_result)
             
             # Here we have cached results and query responses for all terminologies.
             result_temp = self.__create_item_results_from_query(
-                query_result, item_normalized, result_temp, self.CACHE_KEY_ALL_TS)
+                query_result, item_normalized, result_temp)
             
             BitsHelper.bh_request_results[item] = result_temp
             
