@@ -45,7 +45,7 @@ class BitsHelper:
 
     bh_request_results: Dict[str, Dict[str, Dict]] = dict()
     __TIB_URL = "https://api.terminology.tib.eu/api/v2/"
-    __TIB_URL_SEARCH = "https://api.terminology.tib.eu/api/search?"
+    __TIB_URL_SEARCH = "https://api.terminology.tib.eu/api/search?" # TODO: Check https://api.terminology.tib.eu/api/v2/entities?search= instead.
 
     __ONTOLOGY_SIZE = 1000
 
@@ -77,7 +77,7 @@ class BitsHelper:
             self.bh_request_explicit_terminologies(self.__class__.th_np_collection)
             
         elif kind == "use_collection":
-            self.__bh_request_collection()
+            self.__bh_request_collection(self.__class__.th_np_collection, self.use_collection) # Here we use a parameter for the collection, because we also have an interactive collection selection in the WebUI later.
 
         elif kind == "use_all_ts":
             self.__bh_request_all_terminologies(self.__class__.th_np_collection)
@@ -337,14 +337,66 @@ class BitsHelper:
             
         return BitsHelper.bh_request_results # For the WebUI or in general for the external requests
 
-    def __bh_request_collection(self) -> None:
+    def __bh_request_collection(self, np_collection: Set[str], ts_collections: Set[str]) -> Dict[str, Dict[str, Dict]]:
         """
-        Placeholder for collection request implementation.
+        Processes requests for specific terminology collections.
         
-        This method is intended for future implementation of collection-based
-        terminology searches. Currently serves as a placeholder.
+        This method performs terminology searches within specified collections
+        using the TIB API. For each term in the collection:
+        1. Normalizes the term
+        2. Checks cache for existing results using collection-specific keys
+        3. Performs API query if needed with collection parameters
+        4. Processes results and stores matches that meet similarity threshold
+        5. Accumulates results across all collections for each term
+        
+        Args:
+            np_collection (Set[str]): Collection of noun phrases to search for
+            ts_collections (Set[str]): Collection of terminology collection names
+                to search within
+            
+        Returns:
+            Dict[str, Dict[str, Dict]]: Dictionary containing search results for each
+                noun phrase across all specified collections
         """
-        pass
+        for item in np_collection:
+            item_normalized = item.strip().lower()
+            self.sh_set_np(item, item_normalized)
+            
+            # Initialize results for this item if not exists
+            if item not in BitsHelper.bh_request_results:
+                BitsHelper.bh_request_results[item] = dict()
+            
+            for ts_collection in ts_collections:
+
+                # result_temp = {terminology_name: {id, iri, original_label, similarity}}
+                result_temp = dict()
+
+                # Check cache for existing results using collection-specific key
+                # cache_result = self.cache_get_query_item(
+                #     ts_collection, item_normalized)
+                cache_result = False # TODO: Enable Cache later, after all kinds of requests are implemented
+                if cache_result:
+                    query_result = cache_result
+                    # logging.debug(
+                    #     f"__bh_request_collection, use cached result for collection {ts_collection}")
+
+                else:
+                    # Perform query with collection parameters
+                    url = self.__TIB_URL_SEARCH + f'q={item_normalized}&schema=collection&classification={ts_collection}'
+                    # logging.debug(f"__bh_request_collection, url: {url}")   
+                    query_result = self.__perform_query_search(url)
+
+                    # self.cache_set_query_item(  TODO: Enable Cache later, after all kinds of requests are implemented
+                    #     ts_collection, item_normalized, query_result)
+                
+                # Here we have cached results and query responses for all terminologies.
+                result_temp = self.__create_item_results_from_query(
+                    query_result, item_normalized, result_temp)
+            
+                # Accumulate results from this collection
+                BitsHelper.bh_request_results[item].update(result_temp)
+            
+        return BitsHelper.bh_request_results # For the WebUI or in general for the external requests
 
     def bh_request_terminology_names(self) -> List[str]:
         """
