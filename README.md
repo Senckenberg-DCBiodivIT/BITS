@@ -72,6 +72,8 @@ The project follows comprehensive documentation standards:
   - `port` (int): Port number for web server (default: 5000)
   - `open_browser` (bool): Automatically open browser when starting
 
+  **Note for macOS users**: Port 5000 is used by AirPlay on macOS and cannot be used by Flask. Change the port (e.g., to 4999) in your configuration to ensure the web interface works properly.
+
 - `persist_cache` (bool): Enable caching of terminology service results (1 week validity)
 - `persist_statistics` (bool): Enable collection of processing statistics
 - `max_threads` (int): Maximum number of concurrent threads
