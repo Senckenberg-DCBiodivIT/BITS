@@ -341,30 +341,30 @@ class TextHelper:
         
         # Prepare API parameters
         headers = {'Content-Type': 'application/json'}
-        if self.ai_config["ollama"]["api_key"]:
-            headers['Authorization'] = f'Bearer {self.ai_config["ollama"]["api_key"]}'
+        if self.ai_config["ollama"]["NP_RECOGNITION"]["api_key"]:
+            headers['Authorization'] = f'Bearer {self.ai_config["ollama"]["NP_RECOGNITION"]["api_key"]}'
             
         for cell in self.th_cells:
             try:
                 # Prepare request payload
                 payload = {
-                    "model": self.ai_config["ollama"]["model"],
+                    "model": self.ai_config["ollama"]["NP_RECOGNITION"]["model"],
                     "prompt": cell,
-                    "system": self.ai_config["ollama"]["system"],
-                    "temperature": self.ai_config["ollama"]["temperature"],
-                    "reasoning_effort": self.ai_config["ollama"]["reasoning_effort"],
-                    "top_k": self.ai_config["ollama"]["top_k"],
-                    "top_p": self.ai_config["ollama"]["top_p"],
-                    "context_length": self.ai_config["ollama"]["context_length"],
-                    "stream": self.ai_config["ollama"]["stream"],
+                    "system": self.ai_config["ollama"]["NP_RECOGNITION"]["system"],
+                    "temperature": self.ai_config["ollama"]["NP_RECOGNITION"]["temperature"],
+                    "reasoning_effort": self.ai_config["ollama"]["NP_RECOGNITION"]["reasoning_effort"],
+                    "top_k": self.ai_config["ollama"]["NP_RECOGNITION"]["top_k"],
+                    "top_p": self.ai_config["ollama"]["NP_RECOGNITION"]["top_p"],
+                    "context_length": self.ai_config["ollama"]["NP_RECOGNITION"]["context_length"],
+                    "stream": self.ai_config["ollama"]["NP_RECOGNITION"]["stream"],
                 }
                 
                 # Make API request
                 response = requests.post(
-                    f"{self.ai_config['ollama']['link_port']}/api/generate",
+                    f"{self.ai_config['ollama']['NP_RECOGNITION']['link_port']}/api/generate",
                     headers=headers,
                     json=payload,
-                    timeout=self.ai_config['ollama']["timeout"]
+                    timeout=self.ai_config['ollama']["NP_RECOGNITION"]["timeout"]
                 )
                 
                 if response.status_code == 200:
@@ -393,6 +393,15 @@ class TextHelper:
         execution_time = time.time() - start_time
         logging.info(f"Ollama NP recognition completed in {execution_time} seconds")
         logging.debug(f"Total Ollama NPs: {self.__th_ollama_np_collection}")
+
+    def th_np_translation_en(self, np: str) -> str:
+        """
+        Translate a noun phrase to English using the Ollama service.
+        
+        This method translates a given noun phrase to English using the Ollama service.
+        It prepares the request payload and sends it to the Ollama service for translation.
+        """
+        print("\n\n th_np_translation_en: ", np, "\n\n")
 
     def th_replace_except_braces(self, text: str, old: str, new: str) -> str:
         """
@@ -484,3 +493,4 @@ class TextHelper:
         # Look for <think> tags at the start of the text
         pattern = r'^\s*<think>.*?</think>'
         return re.sub(pattern, '', text, flags=re.DOTALL).strip()
+

@@ -1,31 +1,25 @@
 {
     "version": 0.4,
     "annotation": {
-        "input_file": "csv/short.csv",
-        "output_file": "csv/annotated_short.csv",
+        "input_file": "confidential/Sammlung_Kennzeichen.csv",
+        "output_file": "csv/annotated_test.csv",
         "perform_export": "False",
         "perform_validation": "False",
         "ts_sources": {
-            "explicit_terminologies": [
-                "sweet",
-                "chebi"
-            ],
+            "explicit_terminologies": "False",
             "collection": "False"
         },
         "relevant_fields": [
-            "Taxon",
-            "Taxonomie",
-            "Bemerkung Bestimmung",
-            "Bemerkung",
-            "Bemerkung Objekt",
-            "Bemerkung zum Organismus"
+            "113/113.1",
+            "113.2",
+            "161/161.1"
         ],
-        "ignore_cell_value":["-"],
-        "max_iterations": 2
+        "ignore_cell_value":["-", "null"],
+        "max_iterations": 5
     },
     "ai_use": {
         "spacy": "True",
-        "ollama": "False",
+        "ollama": "True",
         "gpt4all": "False",
         "gpt4all_local": "False"
     },
@@ -35,7 +29,7 @@
         "open_browser": "True"
 
     },
-    "persist_cache": "True",
-    "persist_statistics": "False",
+    "persist_cache": "False",
+    "persist_statistics": "True",
     "max_threads": 4
 }
