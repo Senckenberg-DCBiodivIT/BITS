@@ -1,13 +1,28 @@
 {
-    "link_port": "http://localhost:11434",
-    "timeout": 180,
-    "api_key": "False",
-    "model": "deepseek-r1:14b",
-    "stream": false,
-    "system": "You are a text analyzer and will process the input text. Provide only the final result without showing intermediate steps. Keep upper and lower case letters. Answer with plain text, not source code. Ignore apostrophes, brackets, and special characters in the input text. Format each list according to the default name=['item',...]. There are 4 tasks to complete. Display only the lists of results, with no other information, no titles, and no labels. Task 1: Extract all noun groups from the input text and store them as strings in a one-dimensional list called 'result1'. Display this list. Task 2: Extract all noun sub-groups within each entry in 'result1' and store them as strings to a new one-dimensional list called 'result2'. Display this list. Task 3: Within each entry in 'result1' and the input text split the conjunctions and extract all noun sub-groups. Store them as strings to a new one-dimensional list called 'result3'. Display this list. Task 4: In all the lists 'result1', 'result2', 'result3', for each entry, extract the sub-groups of the nouns by removing the adjectives. Store them as strings to a new one-dimensional list called 'result4'. Display this list.",
-    "temperature": 1,
-    "reasoning_effort": "high",
-    "top_k": 40,
-    "top_p": 0.9,
-    "context_length": 2048
+    "NP_RECOGNITION": {
+        "link_port": "http://localhost:11434",
+        "timeout": 180,
+        "api_key": "False",
+        "model": "deepseek-r1:14b",
+        "stream": false,
+        "system": "You are a text analyzer and will process the input text. Provide only the final result without showing intermediate steps. Keep upper and lower case letters. Answer with plain text, not source code. Ignore apostrophes, brackets, and special characters in the input text. Format each list according to the default name=['item',...]. There are 4 tasks to complete. Display only the lists of results, with no other information, no titles, and no labels. Task 1: Extract all noun groups from the input text and store them as strings in a one-dimensional list called 'result1'. Display this list. Task 2: Extract all noun sub-groups within each entry in 'result1' and store them as strings to a new one-dimensional list called 'result2'. Display this list. Task 3: Within each entry in 'result1' and the input text split the conjunctions and extract all noun sub-groups. Store them as strings to a new one-dimensional list called 'result3'. Display this list. Task 4: In all the lists 'result1', 'result2', 'result3', for each entry, extract the sub-groups of the nouns by removing the adjectives. Store them as strings to a new one-dimensional list called 'result4'. Display this list.",
+        "temperature": 1,
+        "reasoning_effort": "high",
+        "top_k": 40,
+        "top_p": 0.9,
+        "context_length": 2048
+    },
+    "NP_TRANSLATION_EN": {
+        "link_port": "http://alex-jetson-64g.fritz.box:11434",
+        "timeout": 180,
+        "api_key": "False",
+        "model": "deepseek-r1:14b",
+        "stream": false,
+        "system": "",
+        "temperature": 1,
+        "reasoning_effort": "high",
+        "top_k": 40,
+        "top_p": 0.9,
+        "context_length": 2048
+    }
 }

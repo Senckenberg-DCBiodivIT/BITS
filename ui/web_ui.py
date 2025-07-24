@@ -1,19 +1,61 @@
+"""
+WebUI Module
+
+This module provides a Flask-based web interface for annotation visualization
+and interactive text processing. It offers functionality for displaying and
+updating content through a web browser.
+
+The module includes:
+- CSV annotation visualization
+- Interactive text annotation
+- Terminology selection and management
+- Real-time annotation processing
+- API endpoints for data exchange
+
+Classes:
+    WebUI: Main class for Flask-based web interface
+"""
+
 from flask import Flask, render_template, request, jsonify, redirect, url_for
-from typing import Optional, Any
+from typing import Optional, Any, Dict, List
 import logging
 import threading
 import webbrowser
 
 
-class WebUI():
+class WebUI:
     """
-    Flask-based web interface for annotation visualization and in later steps interactive text processing and annotation.
-    Provides functionality for displaying and updating content.
+    Flask-based web interface for annotation visualization and interactive text processing.
+    
+    This class provides a comprehensive web interface for the annotation system,
+    including CSV annotation visualization, interactive text processing, and
+    terminology management. It runs as a separate thread to avoid blocking
+    the main application.
+    
+    The interface supports:
+    - CSV annotation display and editing
+    - Interactive text input and processing
+    - Terminology selection and management
+    - Real-time annotation results
+    - API endpoints for data exchange
+    
+    Attributes:
+        TH_WEBUI: TextHelper instance for text processing
+        selected_terminologies (List[str]): List of selected terminologies for annotation
+        __ui (Flask): Flask application instance
+        server_thread (threading.Thread): Thread running the Flask server
     """
 
     def __init__(self, TH) -> None:
         """
-        Initialize the Text Helper object
+        Initialize the WebUI with Flask app and routes.
+        
+        This method sets up the Flask application, configures routes,
+        and starts the web server in a separate thread. It also
+        initializes the TextHelper for text processing.
+        
+        Args:
+            TH: TextHelper instance for text processing functionality
         """
         self.TH_WEBUI = TH
         self.selected_terminologies = []  # Initialize empty list for selected terminologies
@@ -61,9 +103,16 @@ class WebUI():
             port = self.config["web_ui"]["port"]
             webbrowser.open(f'http://localhost:{port}')
 
-    def run_server(self):
+    def run_server(self) -> None:
         """
-        Start the Flask server if initialized
+        Start the Flask server if initialized.
+        
+        This method runs the Flask development server with appropriate
+        settings for production use. It includes error handling for
+        server startup issues.
+        
+        The server runs on localhost with the configured port and
+        supports threaded requests for better performance.
         """
         if self.__ui:
             try:
@@ -79,12 +128,21 @@ class WebUI():
         else:
             logging.error("Flask app not initialized!")
 
-    #Routing
-    def __show_csv_annotation(self):
+    def __show_csv_annotation(self) -> str:
         """
         Show the CSV annotation page.
+        
+        This route displays the main CSV annotation interface with
+        noun phrases, annotated results, and performed annotations.
+        It provides a comprehensive view of the annotation process
+        and results.
+        
+        Returns:
+            str: Rendered HTML template for CSV annotation page
+            
+        Raises:
+            Exception: If template rendering fails
         """
-
         try:
             return render_template('csv_annotation.html',
                                    noun_groups=self.th_np_collection,
@@ -97,20 +155,37 @@ class WebUI():
     def __show_about(self) -> str:
         """
         Show the about page.
+        
+        Returns:
+            str: Rendered HTML template for about page
         """
         return render_template('about.html')
 
     def __show_interactive_annotation(self) -> str:
         """
         Show the interactive annotation page.
+        
+        This route displays the interactive annotation interface where
+        users can input text and see real-time annotation results.
+        
+        Returns:
+            str: Rendered HTML template for interactive annotation page
         """
         return render_template('interactive_annotation.html')
 
-
-    # User text annotation
-    def __handle_annotation(self):
+    def __handle_annotation(self) -> jsonify:
         """
-        Handle the POST request for text annotation
+        Handle the POST request for text annotation.
+        
+        This API endpoint processes text annotation requests from the
+        web interface. It takes user input text, performs noun phrase
+        recognition, and returns annotated results.
+        
+        Returns:
+            jsonify: JSON response containing annotated content and noun phrases
+            
+        Raises:
+            Exception: If annotation processing fails
         """
         try:
             content = request.json.get('text', '')
@@ -120,9 +195,23 @@ class WebUI():
             logging.error(f"Error in annotation handler: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
-    def __annotate_user_text_content(self, content: str):
+    def __annotate_user_text_content(self, content: str) -> tuple[str, str]:
         """
         Annotate the user text content.
+        
+        This method processes user-provided text through the annotation
+        pipeline: noun phrase recognition, terminology matching, and
+        annotation application.
+        
+        Args:
+            content (str): The text content to annotate
+            
+        Returns:
+            tuple[str, str]: Tuple containing (annotated_content, noun_phrases)
+                where noun_phrases is a string representation of the set
+                
+        Raises:
+            Exception: If annotation processing fails
         """
         try:
             # Collect sentences from the content
@@ -153,10 +242,18 @@ class WebUI():
             logging.error(f"Error in annotation: {str(e)}")
             return f"Error during annotation: {str(e)}", str([])
 
-    # User text annotation, terminology handling
-    def __get_terminologies(self):
+    def __get_terminologies(self) -> jsonify:
         """
-        API endpoint that returns available terminologies
+        API endpoint that returns available terminologies.
+        
+        This endpoint queries the TIB API to retrieve a list of all
+        available terminologies that can be used for annotation.
+        
+        Returns:
+            jsonify: JSON response containing list of available terminologies
+            
+        Raises:
+            Exception: If terminology retrieval fails
         """
         try:
             terminologies = self.bh_request_terminology_names()
@@ -165,9 +262,19 @@ class WebUI():
             logging.error(f"Error fetching terminologies: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
-    def __update_terminologies(self):
+    def __update_terminologies(self) -> jsonify:
         """
-        API endpoint to update selected terminologies
+        API endpoint to update selected terminologies.
+        
+        This endpoint receives the list of selected terminologies from
+        the web interface and updates the internal state for use in
+        annotation processing.
+        
+        Returns:
+            jsonify: JSON response indicating success or failure
+            
+        Raises:
+            Exception: If terminology update fails
         """
         try:
             selected = request.json.get('selected', [])
@@ -180,10 +287,19 @@ class WebUI():
             logging.error(f"Error updating terminologies: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
-    # CSV annotation    
-    def __get_csv_data(self):
+    def __get_csv_data(self) -> jsonify:
         """
-        API endpoint that returns the current data as JSON
+        API endpoint that returns the current data as JSON.
+        
+        This endpoint provides the current annotation data to the web
+        interface, including noun phrases, annotated results, and
+        performed annotations.
+        
+        Returns:
+            jsonify: JSON response containing current annotation data
+            
+        Raises:
+            Exception: If data retrieval fails
         """
         try:
             data = {
@@ -197,10 +313,16 @@ class WebUI():
             logging.error(f"Error in __get_csv_data: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
-    # Helper functions
-    def __update_explicit_terminologies(self, explicit_terminologies):
+    def __update_explicit_terminologies(self, selected_terminologies: List[str]) -> None:
         """
-        Update the global explicit terminologies.
+        Update the explicit terminologies in the TextHelper instance.
+        
+        This method updates the explicit_terminologies configuration
+        in the TextHelper instance to match the user's selection
+        from the web interface.
+        
+        Args:
+            selected_terminologies (List[str]): List of selected terminology names
         """
-        self.explicit_terminologies = explicit_terminologies
-        logging.debug(f"ContentHandler, explicit_terminologies: {self.explicit_terminologies}")
+        # Update the explicit terminologies in TH_WEBUI
+        self.TH_WEBUI.explicit_terminologies = selected_terminologies

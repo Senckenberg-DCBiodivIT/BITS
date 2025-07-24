@@ -1,3 +1,17 @@
+"""
+Cache Module
+
+This module provides a thread-safe caching system for query results with
+persistence capabilities. It implements a two-level dictionary cache structure
+that can store query results either by terminology and item or just by item.
+
+The cache includes automatic expiration of entries based on a time window
+and provides persistence to/from JSON file for long-term storage.
+
+Classes:
+    Cache: Main class for thread-safe caching with persistence
+"""
+
 import logging
 import time
 import json
@@ -12,16 +26,24 @@ from typing import Dict, Any, Optional
 
 
 class Cache:
-    """A thread-safe caching system for query results with persistence capabilities.
+    """
+    A thread-safe caching system for query results with persistence capabilities.
     
-    This class implements a two-level dictionary cache structure that can store query results
-    either by terminology and item or just by item. The cache includes automatic expiration
-    of entries based on a time window and provides persistence to/from JSON file.
-
+    This class implements a two-level dictionary cache structure that can store
+    query results either by terminology and item or just by item. The cache
+    includes automatic expiration of entries based on a time window and provides
+    persistence to/from JSON file.
+    
+    The cache supports two modes:
+    - Terminology-based: {terminology: {item: result}}
+    - Flat structure: {item: result}
+    
     Attributes:
-        __CACHE_TIME_WINDOW (int): Duration in seconds for which cache entries remain valid (1 week)
+        __CACHE_TIME_WINDOW (int): Duration in seconds for which cache entries
+            remain valid (1 week = 604800 seconds)
         __CACHE_FILENAME (str): Path to the JSON file used for cache persistence
-        __cache_queries (Dict[str, Dict[str, Any]]): Nested dictionary storing the cached data
+        __cache_queries (Dict[str, Dict[str, Any]]): Nested dictionary storing
+            the cached data
         __cache_queries_lock (Lock): Thread lock for safe concurrent access
     """
 
@@ -33,30 +55,43 @@ class Cache:
     __cache_queries_lock = Lock()
 
     def __init__(self):
-        """Initialize the cache and load existing cache data from file if available."""
-        self.__load_cache()
+        """
+        Initialize the cache and load existing cache data from file if available.
+        
+        Currently disabled for development purposes. Cache loading will be
+        enabled once all request types are implemented.
+        """
+        #self.__load_cache() # TODO: Enable Cache later, after all kinds of requests are implemented
 
-    def __check_create_terminology_in_cache(self, obj: dict, name: str) -> None:
-        """Ensure a terminology key exists in the cache dictionary.
-
+    def __check_create_terminology_in_cache(self, obj: Dict[str, Any], name: str) -> None:
+        """
+        Ensure a terminology key exists in the cache dictionary.
+        
+        This helper method ensures that a terminology key exists in the cache
+        structure before attempting to store or retrieve data for that terminology.
+        
         Args:
-            obj (dict): The dictionary to check/modify
+            obj (Dict[str, Any]): The dictionary to check/modify
             name (str): The terminology key to verify/create
         """
         if name not in obj.keys():
             obj[name] = {}
 
-    # Getter
     def cache_get_query_item(self, terminology: str, item_normalized: str) -> Any:
-        """Retrieve a cached query result for a given terminology and item.
-
+        """
+        Retrieve a cached query result for a given terminology and item.
+        
+        This method checks the cache for existing results and updates
+        cache hit/miss statistics accordingly. If a result is found and
+        is still within the cache time window, it is returned.
+        
         Args:
             terminology (str): The terminology category for the query
             item_normalized (str): The normalized item key to look up
-
+            
         Returns:
-            Any: The cached result if found, False otherwise
-
+            Any: The cached result if found and valid, False otherwise
+            
         Note:
             Updates cache hit/miss statistics via sh_set_cache_hit/miss methods
         """
@@ -74,17 +109,22 @@ class Cache:
 
         return result
 
-    # Setter
-    def cache_set_query_item(self, terminology: str, item_normalized: str, single_result: dict) -> None:
-        """Store a query result in the cache.
-
+    def cache_set_query_item(self, terminology: str, item_normalized: str, single_result: Dict[str, Any]) -> None:
+        """
+        Store a query result in the cache.
+        
+        This method stores query results with automatic timestamp addition
+        for expiration tracking. The result is stored in a thread-safe manner
+        using the cache lock.
+        
         Args:
             terminology (str): The terminology category for the query
             item_normalized (str): The normalized item key to store
-            single_result (dict): The result data to cache
-
+            single_result (Dict[str, Any]): The result data to cache
+            
         Note:
-            Automatically adds a timestamp to the cached result
+            Automatically adds a timestamp to the cached result for
+            expiration tracking
         """
         # logging.debug(f"cache_set_query_item, terminology: {terminology}, item_normalized: {item_normalized}")
 
@@ -97,12 +137,21 @@ class Cache:
                 Cache.__cache_queries[terminology][item_normalized] = single_result
         # logging.debug(f"Result cache: {self.__cache_queries}")
 
-    # Filesystem
     def __load_cache(self) -> None:
-        """Load cached data from the JSON file.
-
-        Handles file reading errors and filters out expired cache entries based on
-        __CACHE_TIME_WINDOW. Supports both terminology-based and flat cache structures.
+        """
+        Load cached data from the JSON file.
+        
+        This method handles loading cache data from the JSON file with
+        proper error handling for file reading and JSON parsing issues.
+        It also filters out expired cache entries based on the cache
+        time window.
+        
+        The method supports both terminology-based and flat cache structures
+        and handles the explicit_terminologies flag appropriately.
+        
+        Raises:
+            FileNotFoundError: If the cache file doesn't exist (handled gracefully)
+            json.JSONDecodeError: If the cache file contains invalid JSON (handled gracefully)
         """
         loaded_data = {}
         try:
@@ -117,7 +166,7 @@ class Cache:
             Cache.__cache_queries = {}
             return None
 
-        # Check for old data
+        # Check for old data and filter expired entries
         if self.explicit_terminologies != False and "explicit_terminologies" in loaded_data.keys() and loaded_data["explicit_terminologies"] == True:
             for terminology in loaded_data:
                 if terminology == "explicit_terminologies":
@@ -131,10 +180,18 @@ class Cache:
         # logging.info(f"Cache loaded: {self.__cache_queries}")
 
     def cache_persist(self) -> None:
-        """Save the current cache state to the JSON file.
-
-        Filters out expired entries before saving and includes the explicit_terminologies
-        flag in the stored data.
+        """
+        Save the current cache state to the JSON file.
+        
+        This method persists the current cache state to the JSON file,
+        filtering out expired entries before saving. It includes the
+        explicit_terminologies flag in the stored data to maintain
+        cache structure information.
+        
+        The method:
+        - Filters out expired entries based on query_time
+        - Includes the explicit_terminologies flag
+        - Saves data in a human-readable JSON format
         """
         logging.debug(f"cache_persist")
         stored_json = {}

@@ -1,3 +1,18 @@
+"""
+AnnotationHelper Module
+
+This module provides functionality for processing and applying terminology annotations
+to text content. It handles the creation of standardized terminology results and
+manages the annotation process across datasets.
+
+The module supports multiple terminology sources and provides methods for
+creating consistent annotation results that can be used across different
+terminology services and APIs.
+
+Classes:
+    AnnotationHelper: Main class for annotation processing and terminology mapping
+"""
+
 import logging
 from typing import Dict, List, Any
 
@@ -5,19 +20,47 @@ from typing import Dict, List, Any
 class AnnotationHelper:
     """
     Helper class for handling annotation processing and terminology mapping.
-    Provides functionality for dataset annotation and terminology result creation.
+    
+    This class provides functionality for:
+    - Creating standardized terminology results from API responses
+    - Processing and annotating entire datasets
+    - Applying annotations to individual cells
+    - Managing annotation statistics and validation
+    
+    The class handles different API response structures and ensures
+    consistent formatting of annotation results across various
+    terminology services.
     """
 
     def ah_create_terminology_result(self, single_result: Dict[str, str], similarity: float) -> Dict[str, Any]:
         """
         Creates a standardized terminology result dictionary from a single annotation result.
-
+        
+        This method normalizes API responses from different terminology services
+        (e.g., OLS4 API, TIB API) into a consistent format for use throughout
+        the annotation system.
+        
         Args:
-            single_result (Dict[str, str]): Dictionary containing the annotation result with id, iri, and label
-            similarity (float): Similarity score for the annotation match
-
+            single_result (Dict[str, str]): Dictionary containing the annotation result.
+                Expected keys include:
+                - 'id' or 'short_form': The terminology identifier
+                - 'iri': The Internationalized Resource Identifier
+                - 'label': The original terminology label
+            similarity (float): Similarity score for the annotation match (0.0 to 1.0)
+            
         Returns:
-            Dict[str, Any]: Formatted terminology result containing id, iri, original label, and similarity score
+            Dict[str, Any]: Formatted terminology result containing:
+                - id: The terminology identifier
+                - iri: The Internationalized Resource Identifier
+                - original_label: The original terminology label
+                - similarity: The similarity score
+                
+        Example:
+            >>> helper = AnnotationHelper()
+            >>> result = {'id': '123', 'iri': 'http://example.org/123', 'label': 'metal oxide'}
+            >>> formatted = helper.ah_create_terminology_result(result, 0.95)
+            >>> print(formatted)
+            {'id': '123', 'iri': 'http://example.org/123', 'original_label': 'metal oxide', 'similarity': 0.95}
         """
         # Handle different API response structures:
         # - OLS4 API uses 'id' field
@@ -31,12 +74,23 @@ class AnnotationHelper:
             "similarity": similarity
         }
 
-    # TODO: Here we use BITS results. Keep in mind __statistics_missed_annotations
     def ah_annotate_dataset(self) -> None:
         """
         Processes and annotates the entire dataset using BITS results.
-        Iterates through each row and relevant field to apply annotations.
-        Updates statistics for successful and missed annotations.
+        
+        This method performs the main annotation workflow:
+        1. Sorts annotation keys by length (longest first) to prioritize
+           longer matches over shorter ones
+        2. Iterates through each row and relevant field in the dataset
+        3. Applies annotations to each cell using the sorted keys
+        4. Updates statistics for successful and missed annotations
+        
+        The method ensures that longer terminology matches are applied
+        before shorter ones to prevent partial matches from interfering
+        with complete terminology annotations.
+        
+        Note: This method requires bh_request_results to be populated
+        with terminology search results before execution.
         """
         logging.debug("ah_annotate_dataset")
 
@@ -56,13 +110,27 @@ class AnnotationHelper:
     def ah_annotate_cell(self, cell: str, sorted_keys: List[str] = None) -> str:
         """
         Annotates a single cell's content with matching terminology.
-
+        
+        This method applies terminology annotations to a cell by replacing
+        matching terms with their annotated representations. The method
+        processes keys in order (typically longest first) to ensure
+        complete matches are applied before partial matches.
+        
         Args:
             cell (str): The cell content to be annotated
-            sorted_keys (List[str]): Sorted list of annotation keys to apply
-
+            sorted_keys (List[str], optional): Sorted list of annotation keys to apply.
+                If None, keys will be sorted by length in descending order.
+                
         Returns:
-            str: The annotated cell content
+            str: The annotated cell content with terminology annotations applied
+            
+        Example:
+            >>> helper = AnnotationHelper()
+            >>> cell = "This contains metal oxide and other materials"
+            >>> keys = ["metal oxide", "metal"]
+            >>> result = helper.ah_annotate_cell(cell, keys)
+            >>> print(result)
+            "This contains {'metal oxide': {...}} and other materials"
         """
         if sorted_keys is None:
             sorted_keys = self.__sort_keys(self.bh_request_results)
@@ -78,20 +146,39 @@ class AnnotationHelper:
     def __sort_keys(self, target: Dict[str, Any]) -> List[str]:
         """
         Sorts dictionary keys by length in descending order.
-
+        
+        This method is used to prioritize longer terminology matches
+        over shorter ones during annotation. This prevents shorter
+        terms from being annotated when they are part of longer
+        terminology matches.
+        
         Args:
             target (Dict[str, Any]): Dictionary whose keys need to be sorted
-
+            
         Returns:
-            List[str]: Sorted list of keys
+            List[str]: Sorted list of keys in descending length order
+            
+        Example:
+            >>> helper = AnnotationHelper()
+            >>> keys = {"metal": {...}, "metal oxide": {...}, "oxide": {...}}
+            >>> sorted_keys = helper.__sort_keys(keys)
+            >>> print(sorted_keys)
+            ['metal oxide', 'metal', 'oxide']
         """
         return sorted(target.keys(), key=lambda x: len(x), reverse=True)
 
     def __set_statistics(self) -> None:
         """
         Updates statistics for annotations, tracking both successful matches
-        and missing/declined annotations. Requires sh_set_np() to be called
-        before processing annotations.
+        and missing/declined annotations.
+        
+        This method processes the bh_request_results to update statistics:
+        - Records successful annotations with their results
+        - Tracks missed or declined annotations
+        - Logs warnings for unexpected cases
+        
+        Note: This method requires sh_set_np() to be called before
+        processing annotations to properly initialize the statistics structure.
         """
         # logging.debug(
         #     f"AnnotationHelper.__set_statistics, self.bh_request_results.items(): {self.bh_request_results.items()}")

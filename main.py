@@ -1,5 +1,9 @@
 """
-Main module for content handling and annotation processing.
+Main Module for Content Handling and Annotation Processing
+
+This module provides the main entry point for the BITS annotation system.
+It orchestrates the entire annotation workflow including text processing,
+terminology matching, and result generation.
 
 Setup Instructions:
 ------------------
@@ -20,7 +24,10 @@ Dependencies:
 - helper.annotation_helper: Annotation processing
 - helper.bits_helper: BITS TS operations
 - helper.text_helper: Text processing utilities
-- helper.web_ui: Web UI functionality
+- ui.web_ui: Web UI functionality
+
+Classes:
+    ContentHandler: Main handler for content processing and annotation
 """
 
 from helper.file_handler import FileHandler as File
@@ -40,6 +47,8 @@ import json
 import time
 import logging
 import threading
+from typing import Dict, Any, List
+
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s:%(message)s\n")
 
 
@@ -47,21 +56,43 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
     """
     Main handler for content processing and annotation.
 
-    Inherits from multiple helper classes to provide comprehensive functionality
-    for text processing, BITS TS operations, annotations, statistics, validation,
-    caching, and file operations.
+    This class inherits from multiple helper classes to provide comprehensive
+    functionality for text processing, BITS TS operations, annotations, statistics,
+    validation, caching, and file operations. It orchestrates the entire
+    annotation workflow from data loading to result generation.
+
+    The class implements a multi-inheritance pattern to combine functionality
+    from specialized helper classes while maintaining a clean interface for
+    the main application logic.
 
     Attributes:
-        explicit_terminologies (dict): Configuration for explicit terminology sources
+        explicit_terminologies (List[str]): Configuration for explicit terminology sources
+        use_collection (bool): Whether to use collection-based terminology search
+        use_all_ts (bool): Whether to use all available terminologies
+        ignore_cell_value (List[str]): Values to ignore during processing
+        relevant_fields (Dict[str, List[str]]): Fields to process by language
         max_iterations (int): Maximum number of iterations for processing
-        relevant_fields (dict): Fields to process by language
         max_threads (int): Maximum number of concurrent threads
+        ai_use (Dict[str, bool]): Configuration for AI services
+        load_json_loads (List[Dict[str, Any]]): Processed JSON data
+        original_json_loads (List[Dict[str, Any]]): Original data for validation
     """
 
     def __init__(self) -> None:
         """
         Initialize the ContentHandler with configuration settings and prepare
         for content processing.
+        
+        This method initializes all inherited classes in the correct order
+        and loads configuration settings. It also starts the WebUI in a
+        separate thread if enabled.
+        
+        The initialization process:
+        1. Initializes base classes (File, Cache, StatisticsHelper)
+        2. Loads configuration settings
+        3. Sets up terminology search configuration
+        4. Initializes WebUI if enabled
+        5. Processes JSON data for annotation
         """
         # Initialize base classes in correct order
         File.__init__(self)
@@ -70,7 +101,9 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
 
         # Load configuration settings
         self.explicit_terminologies = self.config["annotation"]["ts_sources"]["explicit_terminologies"]
-        self.bits_ts_collection = self.config["annotation"]["ts_sources"]["collection"]
+        self.use_collection = self.config["annotation"]["ts_sources"]["collection"]
+        self.use_all_ts = not self.explicit_terminologies and not self.use_collection
+
         self.ignore_cell_value = self.config["annotation"]["ignore_cell_value"]
         self.relevant_fields = self.config["annotation"]["relevant_fields"]
         self.max_iterations = self.config["annotation"]["max_iterations"]
@@ -84,11 +117,11 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
 
         self.__handle_json_loads()
 
-    def __handle_json_loads(self):
+    def __handle_json_loads(self) -> None:
         """
         Process JSON data for annotation.
-
-        Steps:
+        
+        This method orchestrates the complete annotation workflow:
         1. Load and truncate JSON data based on max_iterations
         2. Create a deep copy for validation
         3. Process each item across relevant fields and languages
@@ -98,8 +131,11 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         7. Export results if configured
         8. Validate results if configured
         9. Persist statistics and cache if configured
+        
+        The method processes data in a structured manner, ensuring that
+        all steps are completed before moving to the next phase of
+        the annotation pipeline.
         """
-
         # logging.debug(f"ContentHandler, handle loads for the relevant fields: {
         #               self.relevant_fields}")
 
@@ -133,30 +169,30 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         logging.debug(
             f"ContentHandler, th_np_collection: {TH.th_np_collection}")
 
-        # Handle BITS requests
+        # Handle BITS requests based on terminology configuration
         if self.explicit_terminologies != False:
             self.bh_request("explicit_terminologies", 50000)
-        if self.bits_ts_collection != False:
-            self.bh_request("collection", 50000)
-        if not self.explicit_terminologies and not self.bits_ts_collection:
-            self.bh_request("complete", 50000)
+        elif self.use_collection != False:
+            self.bh_request("use_collection", 50000)
+        elif self.use_all_ts:
+            self.bh_request("use_all_ts", 50000)
 
-        # Annotate
+        # Annotate the dataset
         self.ah_annotate_dataset()
 
-        # Export annotation
+        # Export annotation results if configured
         if self.config["annotation"]["perform_export"]:
             self.export_csv(self.load_json_loads)
 
-        # Perform validation
+        # Perform validation if configured
         if self.config["annotation"]["perform_validation"]:
             self.vh_bijective_validation()
 
-        # Persist statistics
+        # Persist statistics if configured
         if self.config["persist_statistics"]:
             self.sh_persist_data()
 
-        # Persist TS cache
+        # Persist TS cache if configured
         if self.config["persist_cache"]:
             self.cache_persist()
 
@@ -164,7 +200,16 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
 if __name__ == "__main__":
     """
     Main execution block for content annotation processing.
-    Measures and logs execution time.
+    
+    This block serves as the entry point for the annotation system.
+    It measures and logs execution time, and provides user feedback
+    about the process completion.
+    
+    The execution flow:
+    1. Create ContentHandler instance
+    2. Log WebUI availability if enabled
+    3. Measure and log execution time
+    4. Wait for user input before exit
     """
     start_time = time.time()
     annotator = ContentHandler()
