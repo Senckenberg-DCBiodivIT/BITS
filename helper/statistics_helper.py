@@ -154,8 +154,18 @@ class StatisticsHelper:
         """
         Save the current statistics to a JSON file.
         
-        Creates or overwrites 'statistics.json' in the current directory
-        with all collected statistics data.
+        Converts the statistics dictionary to a formatted JSON string
+        and uses the FileHandler's store_text_file method for reliable
+        file writing with proper error handling.
         """
-        with open("./statistics.json", "w") as statistics_file:
-            json.dump(self.statistics, statistics_file, indent=4)
+        try:
+            # Prepare the content as a formatted JSON string
+            content = json.dumps(self.statistics, indent=4)
+            
+            # Use FileHandler's store_text_file method for reliable file writing
+            self.store_text_file(content, "./statistics.json")
+            
+        except Exception as e:
+            error = f"StatisticsHelper, unable to persist statistics data: {str(e)}"
+            logging.error(error)
+            raise Exception(error)
