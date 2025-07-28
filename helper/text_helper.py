@@ -23,6 +23,7 @@ from urllib.parse import quote
 from typing import Dict, Any, List, Set, Optional
 
 import spacy
+import Levenshtein
 from gpt4all import GPT4All
 
 
@@ -494,3 +495,45 @@ class TextHelper:
         pattern = r'^\s*<think>.*?</think>'
         return re.sub(pattern, '', text, flags=re.DOTALL).strip()
 
+    def th_normalize_text(self, text: str) -> str:
+        """
+        Normalize text by converting to lowercase and removing special characters.
+
+        This method performs text normalization by:
+        1. Converting text to lowercase
+        2. Removing all characters except letters, numbers and spaces
+        3. Normalizing whitespace to single spaces
+        4. Trimming leading/trailing whitespace
+
+        Args:
+            text (str): The input text to normalize
+
+        Returns:
+            str: The normalized text string
+
+        Example:
+            >>> helper = TextHelper()
+            >>> text = "Hello, World! 123"
+            >>> result = helper.th_normalize_text(text)
+            >>> print(result)
+            'hello world 123'
+        """
+        # Handle non-string inputs
+        if not isinstance(text, str):
+            if hasattr(text, 'text'):
+                # Handle SpaCy Doc objects
+                text = str(text.text)
+            else:
+                # Convert other objects to string
+                text = str(text)
+        
+        print("\n\n th_normalize_text: ", text, "\n\n")
+        text = text.lower()
+        text = re.sub(r'[^a-z0-9\s]', '', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+    
+    def th_similarity_check(self, input_text: str, term_text: str, language: str = "en") -> float:
+        input_text = self.th_normalize_text(input_text)
+        term_text = self.th_normalize_text(term_text)
+        return Levenshtein.ratio(input_text, term_text)

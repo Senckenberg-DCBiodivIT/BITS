@@ -19,13 +19,13 @@
     },
     "ai_use": {
         "spacy": "True",
-        "ollama": "True",
+        "ollama": "False",
         "gpt4all": "False",
         "gpt4all_local": "False"
     },
     "web_ui": {
         "enabled": "True",
-        "port": 5000,
+        "port": 5001,
         "open_browser": "True"
 
     },

@@ -195,8 +195,8 @@ class BitsHelper:
 
         language = "en" # here we use english for the similarity check. It seems not to be a problem for the similarity check for german terms as well. 
 
-        item_normalized_similarity = self.SPACY_HANDLER[language](
-            item_normalized)
+        #item_normalized_similarity = self.SPACY_HANDLER[language](
+        #    item_normalized)
 
         if "docs" in query_result.keys():
             for single_result in query_result["docs"]:
@@ -210,8 +210,9 @@ class BitsHelper:
                 # If there is no specific terminology name, we have to use each result for each terminology.
                 if (terminology_name != "" and terminology_name in result_temp.keys()) or terminology_name == "":
                     terminology_name_single_result = terminology_name if terminology_name != "" else single_result["ontology_name"]
-                    similarity_factor = item_normalized_similarity.similarity(
-                    label)
+                    #similarity_factor = item_normalized_similarity.similarity(
+                    #    label)
+                    similarity_factor = self.th_similarity_check(item_normalized, label)
                     # print(f"Similarity: {similarity_factor}")
                     
                     if similarity_factor >= self.SIMILARITY_ACK:
