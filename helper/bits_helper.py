@@ -213,12 +213,9 @@ class BitsHelper:
                     #similarity_factor = item_normalized_similarity.similarity(
                     #    label)
                     similarity_factor = self.th_similarity_check(item_normalized, label)
-                    print(f"\n\nsimilarity_factor: {similarity_factor}")
                     if item_normalized_translated != "":
                         similarity_factor_translated = self.th_similarity_check(item_normalized_translated, label)
-                        print(f"similarity_factor_translated: {similarity_factor_translated}")
                         similarity_factor = max(similarity_factor, similarity_factor_translated)
-                        print(f"resulting similarity_factor: {similarity_factor}\n\n")
                     # print(f"Similarity: {similarity_factor}")
                     
                     if similarity_factor >= self.SIMILARITY_ACK:

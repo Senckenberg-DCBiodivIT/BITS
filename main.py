@@ -111,7 +111,9 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         self.ai_use = self.config["ai_use"]
 
         self.fallback_translation_libretranslate = self.config["fallback_translation_libretranslate"]
+        self.mids_terms = self.config["mids_terms"]
 
+        
         # Start WebUI in separate thread if enabled
         if self.config["web_ui"]["enabled"]:
             logging.debug("Web UI is enabled, starting server...")

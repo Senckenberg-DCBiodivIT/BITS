@@ -14,6 +14,7 @@ Classes:
 """
 
 import logging
+from datetime import datetime
 from typing import Dict, List, Any
 
 
@@ -67,12 +68,29 @@ class AnnotationHelper:
         # - TIB API uses 'short_form' field
         result_id = single_result.get("id") or single_result.get("short_form", "")
         
-        return {
+        result = {
             "id": result_id,
             "iri": single_result["iri"],
             "original_label": single_result["label"],
             "similarity": similarity
         }
+        
+        if self.mids_terms["enabled"]:
+            result["mids"] = {}
+            result["mids"]["identifier"] = self.mids_terms["identifier"]
+            result["mids"]["label"] = self.mids_terms["label"]
+            result["mids"]["description"] = self.mids_terms["description"]
+            result["mids"]["creator"] = self.mids_terms["creator"]
+            result["mids"]["digital_representation_type"] = self.mids_terms["digital_representation_type"]
+            result["mids"]["provenance"] = self.mids_terms["provenance"]
+
+
+            if self.mids_terms["creation_date"] != "default":
+                result["mids"]["creation_date"] = self.mids_terms["creation_date"]
+            else:
+                result["mids"]["creation_date"] = datetime.now().strftime("%Y-%m-%d")
+
+        return result
 
     def ah_annotate_dataset(self) -> None:
         """
