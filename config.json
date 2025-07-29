@@ -17,9 +17,15 @@
         "ignore_cell_value":["-", "null"],
         "max_iterations": 5
     },
+    "fallback_translation_libretranslate": {
+        "enabled": "True",
+        "source_language": "de",
+        "target_language": "en",
+        "url": "http://localhost:5002/translate"
+    },
     "ai_use": {
         "spacy": "True",
-        "ollama": "False",
+        "ollama": "True",
         "gpt4all": "False",
         "gpt4all_local": "False"
     },

@@ -102,7 +102,8 @@ class StatisticsHelper:
         self.__check_create_in_dict(self.statistics["NP"]["identified"], np)
         self.statistics["NP"]["identified"][np] = {
             "normalized": np_normalized, 
-            "annotation": ""
+            "annotation": "",
+            "translation": ""
         }
 
     def sh_set_np_missing_annotation(self, np: str) -> None:
@@ -126,6 +127,16 @@ class StatisticsHelper:
             annotation (Dict[str, Any]): The annotation result dictionary
         """
         self.statistics["NP"]["identified"][np]["annotation"] = annotation
+
+    def sh_set_np_translation(self, np: str, translation: str) -> None:
+        """
+        Record the translation of a noun phrase.
+        
+        Args:
+            np (str): The noun phrase being translated
+            translation (str): The translation of the noun phrase
+        """
+        self.statistics["NP"]["identified"][np]["translation"] = translation
 
     # Validation Statistics Methods
     def sh_set_validation_error(self, item: str, message: str) -> None:
@@ -160,7 +171,7 @@ class StatisticsHelper:
         """
         try:
             # Prepare the content as a formatted JSON string
-            content = json.dumps(self.statistics, indent=4)
+            content = json.dumps(self.statistics, indent=4, ensure_ascii=False)
             
             # Use FileHandler's store_text_file method for reliable file writing
             self.store_text_file(content, "./statistics.json")
