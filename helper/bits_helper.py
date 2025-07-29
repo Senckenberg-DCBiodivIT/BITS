@@ -259,6 +259,14 @@ class BitsHelper:
             # result_temp = {terminology_name: {id, iri, original_label, similarity}}
             result_temp = dict()
 
+            # Check if fallback translation is enabled and get translated term
+            item_normalized_translated = ""
+            if self.fallback_translation_libretranslate["enabled"]:
+                item_normalized_translated = self.th_language_translation(item_normalized, self.fallback_translation_libretranslate["source_language"], self.fallback_translation_libretranslate["target_language"])
+                print(f"\nitem_normalized_translated: {item_normalized_translated}\n")
+            
+            self.sh_set_np_translation(item, item_normalized_translated)
+
             for terminology_name in self.explicit_terminologies:
                 # Check query cache. Maybe there is a result from another one instance or a stored result
                 
@@ -286,7 +294,7 @@ class BitsHelper:
 
                 # Here we have cached results and query responses for each terminology.
                 result_temp = self.__create_item_results_from_query(
-                    query_result, item_normalized, result_temp, terminology_name)
+                    query_result, item_normalized, result_temp, terminology_name, item_normalized_translated)
            
             BitsHelper.bh_request_results[item] = result_temp
 
@@ -385,6 +393,14 @@ class BitsHelper:
             item_normalized = item.strip().lower()
             self.sh_set_np(item, item_normalized)
             
+            # Check if fallback translation is enabled and get translated term
+            item_normalized_translated = ""
+            if self.fallback_translation_libretranslate["enabled"]:
+                item_normalized_translated = self.th_language_translation(item_normalized, self.fallback_translation_libretranslate["source_language"], self.fallback_translation_libretranslate["target_language"])
+                print(f"\nitem_normalized_translated: {item_normalized_translated}\n")
+            
+            self.sh_set_np_translation(item, item_normalized_translated)
+            
             # Initialize results for this item if not exists
             if item not in BitsHelper.bh_request_results:
                 BitsHelper.bh_request_results[item] = dict()
@@ -414,7 +430,7 @@ class BitsHelper:
                 
                 # Here we have cached results and query responses for all terminologies.
                 result_temp = self.__create_item_results_from_query(
-                    query_result, item_normalized, result_temp)
+                    query_result, item_normalized, result_temp, item_normalized_translated=item_normalized_translated)
             
                 # Accumulate results from this collection
                 BitsHelper.bh_request_results[item].update(result_temp)
