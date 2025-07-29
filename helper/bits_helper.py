@@ -168,7 +168,7 @@ class BitsHelper:
             return dict()
 
     def __create_item_results_from_query(self, query_result: Dict[str, Any], item_normalized: str, 
-                                       result_temp: Dict[str, Any], terminology_name: str = "") -> Dict[str, Any]:
+                                       result_temp: Dict[str, Any], terminology_name: str = "", item_normalized_translated: str = "") -> Dict[str, Any]:
         """
         Processes query results and creates terminology matches based on similarity threshold.
         
@@ -195,8 +195,8 @@ class BitsHelper:
 
         language = "en" # here we use english for the similarity check. It seems not to be a problem for the similarity check for german terms as well. 
 
-        item_normalized_similarity = self.SPACY_HANDLER[language](
-            item_normalized)
+        #item_normalized_similarity = self.SPACY_HANDLER[language](
+        #    item_normalized)
 
         if "docs" in query_result.keys():
             for single_result in query_result["docs"]:
@@ -210,8 +210,15 @@ class BitsHelper:
                 # If there is no specific terminology name, we have to use each result for each terminology.
                 if (terminology_name != "" and terminology_name in result_temp.keys()) or terminology_name == "":
                     terminology_name_single_result = terminology_name if terminology_name != "" else single_result["ontology_name"]
-                    similarity_factor = item_normalized_similarity.similarity(
-                    label)
+                    #similarity_factor = item_normalized_similarity.similarity(
+                    #    label)
+                    similarity_factor = self.th_similarity_check(item_normalized, label)
+                    print(f"\n\nsimilarity_factor: {similarity_factor}")
+                    if item_normalized_translated != "":
+                        similarity_factor_translated = self.th_similarity_check(item_normalized_translated, label)
+                        print(f"similarity_factor_translated: {similarity_factor_translated}")
+                        similarity_factor = max(similarity_factor, similarity_factor_translated)
+                        print(f"resulting similarity_factor: {similarity_factor}\n\n")
                     # print(f"Similarity: {similarity_factor}")
                     
                     if similarity_factor >= self.SIMILARITY_ACK:
@@ -304,6 +311,10 @@ class BitsHelper:
             Dict[str, Dict[str, Dict]]: Dictionary containing search results for each
                 noun phrase across all terminologies
         """
+        def perform_query(item_normalized: str) -> Dict[str, Any]:
+            url = self.__TIB_URL_SEARCH + f'q={item_normalized}'
+            return self.__perform_query_search(url)
+        
         for item in np_collection:
             item_normalized = item.strip().lower()
             self.sh_set_np(item, item_normalized)
@@ -322,16 +333,28 @@ class BitsHelper:
 
             else:
                 # Perform query
-                url = self.__TIB_URL_SEARCH + f'q={item_normalized}'
+                # url = self.__TIB_URL_SEARCH + f'q={item_normalized}'
                 # logging.debug(f"bh_request_all_terminologies, url, handler: {url}")   
-                query_result = self.__perform_query_search(url)
+                # query_result = self.__perform_query_search(url)
+                query_result = perform_query(item_normalized)
+                print(f"\nquery_result: {query_result}")
+                print(f"query_result length: {len(query_result)}\n")
 
                 # self.cache_set_query_item(  TODO: Enable Cache later, after all kinds of requests are implemented
                 #     self.CACHE_KEY_ALL_TS, item_normalized, query_result)
             
             # Here we have cached results and query responses for all terminologies.
-            result_temp = self.__create_item_results_from_query(
-                query_result, item_normalized, result_temp)
+            # Check if query_result is empty and the fallback translation is enabled
+            item_normalized_translated = ""
+            #if len(query_result) == 0 and self.fallback_translation_libretranslate["enabled"]:
+            if self.fallback_translation_libretranslate["enabled"]:
+                item_normalized_translated = self.th_language_translation(item_normalized, self.fallback_translation_libretranslate["source_language"], self.fallback_translation_libretranslate["target_language"])
+                print(f"\nitem_normalized_translated: {item_normalized_translated}\n")
+            
+            self.sh_set_np_translation(item, item_normalized_translated)
+
+            result_temp = self.__create_item_results_from_query(query_result, item_normalized, result_temp, item_normalized_translated=item_normalized_translated)
+            print(f"\nresult_temp: {result_temp}\n")
             
             BitsHelper.bh_request_results[item] = result_temp
             

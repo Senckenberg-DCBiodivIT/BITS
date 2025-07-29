@@ -15,14 +15,18 @@ Classes:
 import re
 import time
 import logging
+
 import json
 import requests
+
 from threading import Lock
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote
+
 from typing import Dict, Any, List, Set, Optional
 
 import spacy
+import Levenshtein
 from gpt4all import GPT4All
 
 
@@ -155,10 +159,13 @@ class TextHelper:
             f"NPs from ollama service: {self.__th_ollama_np_collection}")
 
         # Combine results from all services, filtering by minimum length
-        TextHelper.th_np_collection = {item for item in self.__th_spacy_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH} | {
+        combined_nps = {item for item in self.__th_spacy_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH} | {
             item for item in self.__th_gpt4all_local_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH} | {
             item for item in self.__th_gpt4all_service_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH} | {
             item for item in self.__th_ollama_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH}
+        
+        # Clean standalone numbers from the combined collection
+        TextHelper.th_np_collection = self.__clean_standalone_numbers(combined_nps)
 
     def th_np_recognition_collect_cells(self, cell: str) -> None:
         """
@@ -494,3 +501,136 @@ class TextHelper:
         pattern = r'^\s*<think>.*?</think>'
         return re.sub(pattern, '', text, flags=re.DOTALL).strip()
 
+    def th_normalize_text(self, text: str) -> str:
+        """
+        Normalize text by converting to lowercase and removing special characters.
+
+        This method performs text normalization by:
+        1. Converting text to lowercase
+        2. Removing all characters except letters, numbers and spaces
+        3. Normalizing whitespace to single spaces
+        4. Trimming leading/trailing whitespace
+
+        Args:
+            text (str): The input text to normalize
+
+        Returns:
+            str: The normalized text string
+
+        Example:
+            >>> helper = TextHelper()
+            >>> text = "Hello, World! 123"
+            >>> result = helper.th_normalize_text(text)
+            >>> print(result)
+            'hello world 123'
+        """
+        # Handle non-string inputs
+        if not isinstance(text, str):
+            if hasattr(text, 'text'):
+                # Handle SpaCy Doc objects
+                text = str(text.text)
+            else:
+                # Convert other objects to string
+                text = str(text)
+        
+        text = text.lower()
+        text = re.sub(r'[^a-z0-9\s]', '', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+    
+    def th_similarity_check(self, input_text: str, term_text: str, language: str = "en") -> float:
+        input_text = self.th_normalize_text(input_text)
+        term_text = self.th_normalize_text(term_text)
+        return Levenshtein.ratio(input_text, term_text)
+
+    def th_language_translation(self, input: str, input_language: str ="de", result_language: str = "en") -> str:
+        """
+        Translate text from one language to another using LibreTranslate service.
+
+        This method performs text translation by:
+        1. Converting the input text to a string
+        2. Making a POST request to the configured LibreTranslate endpoint
+        3. Extracting and returning the translated text from the response
+
+        The translation service is configured via the fallback_translation_libretranslate 
+        settings in config.json, which specifies:
+        - URL endpoint for the LibreTranslate service
+        - Default source and target languages
+        - Service configuration options
+
+        Args:
+            input (str): The text to translate
+            input_language (str, optional): Source language code. Defaults to "de" (German).
+                Must match languages configured in LibreTranslate docker container.
+            result_language (str, optional): Target language code. Defaults to "en" (English).
+                Must match languages configured in LibreTranslate docker container.
+
+        Returns:
+            str: The translated text string
+
+        Example:
+            >>> helper = TextHelper()
+            >>> text = "Hallo Welt"
+            >>> result = helper.th_language_translation(text)
+            >>> print(result)
+            'Hello World'
+
+        Note:
+            Translation capabilities depend on the LibreTranslate docker container 
+            configuration. As of July 2025, only German (de) and English (en) are 
+            supported by default. Use "auto" for source language only if multilingual 
+            detection is configured.
+        """
+        data = {
+            "q": str(input),
+            "source": input_language,
+            "target": result_language,
+            "format": "text"
+        }
+        headers = {
+            "Content-Type": "application/json"
+        }
+        response = requests.post(self.fallback_translation_libretranslate["url"], headers=headers, data=json.dumps(data))
+        return response.json().get("translatedText")
+
+    def __clean_standalone_numbers(self, np_collection: Set[str]) -> Set[str]:
+        """
+        Clean noun phrases by removing standalone numbers while preserving numbers within words.
+        
+        This method processes a collection of noun phrases and removes standalone numbers
+        while keeping numbers that are part of words or phrases.
+        
+        Args:
+            np_collection (Set[str]): Collection of noun phrases to clean
+            
+        Returns:
+            Set[str]: Cleaned collection with standalone numbers removed
+            
+        Examples:
+            >>> helper = TextHelper()
+            >>> nps = {"1 test 234", "Test1", "1 Test2", "metal oxide", "123"}
+            >>> result = helper.__clean_standalone_numbers(nps)
+            >>> print(result)
+            {'test', 'Test1', 'Test2', 'metal oxide'}
+        """
+        cleaned_collection = set()
+        
+        for np in np_collection:
+            # Split by whitespace and filter out standalone numbers
+            words = np.split()
+            cleaned_words = []
+            
+            for word in words:
+                # Check if the word is a standalone number (only digits)
+                if not word.isdigit():
+                    cleaned_words.append(word)
+            
+            # Reconstruct the noun phrase if there are remaining words
+            if cleaned_words:
+                cleaned_np = ' '.join(cleaned_words).strip()
+                # Only add if the cleaned phrase meets minimum length requirement
+                if len(cleaned_np) >= self.__TH_MIN_NP_LENGTH:
+                    cleaned_collection.add(cleaned_np)
+        
+        return cleaned_collection
+  

@@ -17,6 +17,12 @@
         "ignore_cell_value":["-", "null"],
         "max_iterations": 5
     },
+    "fallback_translation_libretranslate": {
+        "enabled": "True",
+        "source_language": "de",
+        "target_language": "en",
+        "url": "http://localhost:5002/translate"
+    },
     "ai_use": {
         "spacy": "True",
         "ollama": "True",
@@ -25,7 +31,7 @@
     },
     "web_ui": {
         "enabled": "True",
-        "port": 5000,
+        "port": 5001,
         "open_browser": "True"
 
     },

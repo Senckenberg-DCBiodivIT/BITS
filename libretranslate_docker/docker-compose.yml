@@ -1,0 +1,15 @@
+version: '3'
+services:
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    ports:
+      - "5002:5000"
+    environment:
+      - LT_LOAD_ONLY=en,de
+      # Optional: Lade nur gewünschte Sprachen (hier Englisch & Deutsch),
+    volumes:
+      - ./libretranslate-data:/data
+    #restart: unless-stopped
+
+volumes:
+  libretranslate-data:
