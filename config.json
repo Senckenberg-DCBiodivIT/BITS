@@ -3,7 +3,7 @@
     "annotation": {
         "input_file": "confidential/Sammlung_Kennzeichen.csv",
         "output_file": "csv/annotated_test.csv",
-        "perform_export": "True",
+        "perform_export": "False",
         "perform_validation": "True",
         "ts_sources": {
             "explicit_terminologies": "False",
@@ -15,7 +15,7 @@
             "161/161.1"
         ],
         "ignore_cell_value":["-", "null"],
-        "max_iterations": 10
+        "max_iterations": 5
     },
     "fallback_translation_libretranslate": {
         "enabled": "True",
