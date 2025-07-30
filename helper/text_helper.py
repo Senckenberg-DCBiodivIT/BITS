@@ -200,6 +200,11 @@ class TextHelper:
             cell (str): The text cell to process and store
         """
         # logging.debug(f"th_np_recognition_collect_cells: {cell}")
+        
+        # Handle None values
+        if cell is None:
+            return
+            
         if cell not in self.ignore_cell_value:
             # logging.debug(f"Store th_np_recognition_collect_cells: {cell}")
             self.th_cells.append(cell[:])  # Use a shallow copy of the cell
@@ -247,6 +252,10 @@ class TextHelper:
             language (str): The language model to use ('en' or 'ger')
             cell (str): The text cell to process
         """
+        # Handle None values
+        if cell is None:
+            return
+            
         cell_temp = cell[:]
         for sign in self.__TH_SGN_SPLIT_SENTENCE:
             cell_temp = cell_temp.replace(sign, self.__TH_REPLACE_SIGN)
@@ -276,13 +285,17 @@ class TextHelper:
         Returns:
             str: The preprocessed cell ready for SpaCy processing
         """
+        # Handle None values
+        if cell is None:
+            return ""
+            
         # Use smaller text chunks for SpaCy
         for split_sign in self.__TH_SGN_SPLIT_SENTENCE:
             cell = cell.replace(
                 split_sign, self.__TH_REPLACE_SIGN)
 
         # Fix for a better NP recognition
-        if cell[-1] != ".":
+        if cell and cell[-1] != ".":
             cell += self.__TH_REPLACE_SIGN
 
         return cell
@@ -433,32 +446,58 @@ class TextHelper:
 
     def th_replace_except_braces(self, text: str, old: str, new: str) -> str:
         """
-        Replace characters in text while preserving content within braces.
+        Replace whole words in text while preserving content within braces.
         
-        This method performs text replacement while protecting content within
-        curly braces from being modified. This is useful for preserving
-        annotation markers during text processing.
+        This method performs word replacement while protecting content within
+        curly braces from being modified. Only complete words are replaced,
+        not parts of words. This is useful for preserving annotation markers
+        during text processing.
         
         Args:
             text (str): The input text to process
-            old (str): The character to replace
-            new (str): The replacement character
+            old (str): The word to replace (must be a complete word)
+            new (str): The replacement word
 
         Returns:
-            str: The processed text with replacements applied outside of braces
+            str: The processed text with word replacements applied outside of braces
             
-        Example:
+        Examples:
             >>> helper = TextHelper()
-            >>> text = "metal oxide {'metal oxide': {...}}"
-            >>> result = helper.th_replace_except_braces(text, "e", "X")
+            >>> # Single word replacement
+            >>> text = "The cat sat on the mat. The cathedral is beautiful."
+            >>> result = helper.th_replace_except_braces(text, "the", "a")
             >>> print(result)
-            "mXtal oxidX {'metal oxide': {...}}"
+            "The cat sat on a mat. The cathedral is beautiful."
+            
+            >>> # Multiple word replacement
+            >>> text = "The machine learning algorithm processes data efficiently."
+            >>> result = helper.th_replace_except_braces(text, "machine learning", "artificial intelligence")
+            >>> print(result)
+            "The artificial intelligence algorithm processes data efficiently."
+            
+            >>> # With braces protection
+            >>> text = "The cat {'cat': 'feline'} sat on the mat {'mat': 'carpet'}."
+            >>> result = helper.th_replace_except_braces(text, "cat", "dog")
+            >>> print(result)
+            "The dog {'cat': 'feline'} sat on the mat {'mat': 'carpet'}."
+            
+            >>> # Word boundaries - only complete words
+            >>> text = "The computer processes data. The cathedral is beautiful."
+            >>> result = helper.th_replace_except_braces(text, "the", "a")
+            >>> print(result)
+            "The computer processes data. The cathedral is beautiful."
         """
+        # Handle None values
+        if text is None:
+            return ""
+            
         segments = re.split(r'(\{[^}]*\})', text)
 
         for i in range(len(segments)):
             if not segments[i].startswith('{') and not segments[i].endswith('}'):
-                segments[i] = segments[i].replace(old, new)
+                # Use word boundaries to replace only complete words
+                # Replace exact matches only (case-sensitive)
+                segments[i] = re.sub(r'\b' + re.escape(old) + r'\b', new, segments[i])
 
         return ''.join(segments)
 

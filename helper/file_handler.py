@@ -50,7 +50,7 @@ class FileHandler:
         __CONFIG_VERSION (float): Required configuration version (0.4)
     """
 
-    __CONFIG_VERSION: float = 0.4
+    __CONFIG_VERSION: float = 0.5
 
     def __init__(self) -> None:
         """
@@ -281,9 +281,9 @@ class FileHandler:
         for key, value in data.items():
             if isinstance(value, dict):
                 self.__convert_true_false_values(value)
-            elif value == "True":
+            elif value == "True" or value == "true":
                 data[key] = True
-            elif value == "False":
+            elif value == "False" or value == "false":
                 data[key] = False
 
     def __check_config_version(self) -> None:

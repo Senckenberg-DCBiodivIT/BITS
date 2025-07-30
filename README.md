@@ -4,7 +4,7 @@ A comprehensive system for automated terminology annotation and enrichment using
 
 ## Overview
 
-FAIRenrich (Biodiversity and ESS Terminology Service) is designed to automatically identify and annotate terms in text content using semantic similarity matching against various terminology sources. The system integrates multiple AI services for noun phrase recognition and provides a flexible web interface for interactive annotation.
+FAIRenrich is designed to automatically identify and annotate terms in text content using semantic similarity matching against various terminology sources. The system integrates multiple AI services for noun phrase recognition and provides a flexible web interface for interactive annotation.
 
 ## Key Features
 

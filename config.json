@@ -1,5 +1,5 @@
 {
-    "version": 0.4,
+    "version": 0.5,
     "annotation": {
         "input_file": "confidential/Sammlung_Kennzeichen.csv",
         "output_file": "csv/annotated_test.csv",
@@ -15,7 +15,7 @@
             "161/161.1"
         ],
         "ignore_cell_value":["-", "null"],
-        "max_iterations": 5
+        "max_iterations": 10
     },
     "fallback_translation_libretranslate": {
         "enabled": "True",
