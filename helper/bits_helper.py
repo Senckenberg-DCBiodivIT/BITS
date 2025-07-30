@@ -215,6 +215,10 @@ class BitsHelper:
             for single_result in query_result["docs"]:
                 # print(f"Single result: {single_result}")
 
+                # Check if the result has a label field
+                if "label" not in single_result:
+                    continue  # Skip results without a label
+                    
                 label = self.SPACY_HANDLER[language](
                     single_result["label"].lower())
                 # print(f"single_result: {single_result}")
