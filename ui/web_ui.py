@@ -3,14 +3,18 @@ WebUI Module
 
 This module provides a Flask-based web interface for annotation visualization
 and interactive text processing. It offers functionality for displaying and
-updating content through a web browser.
+updating content through a web browser with real-time processing capabilities.
 
-The module includes:
+The module includes comprehensive web interface features:
 - CSV annotation visualization
-- Interactive text annotation
+- Interactive text annotation with real-time processing
 - Terminology selection and management
-- Real-time annotation processing
+- Real-time annotation processing and results display
 - API endpoints for data exchange
+
+The web interface runs in a separate thread to avoid blocking
+the main annotation workflow, providing a responsive user experience
+while maintaining system performance.
 
 Classes:
     WebUI: Main class for Flask-based web interface
@@ -27,17 +31,21 @@ class WebUI:
     """
     Flask-based web interface for annotation visualization and interactive text processing.
     
-    This class provides a comprehensive web interface for the annotation system,
+    This class provides a comprehensive web interface for the BITS annotation system,
     including CSV annotation visualization, interactive text processing, and
     terminology management. It runs as a separate thread to avoid blocking
-    the main application.
+    the main application while providing a responsive user experience.
     
-    The interface supports:
-    - CSV annotation display and editing
-    - Interactive text input and processing
-    - Terminology selection and management
-    - Real-time annotation results
+    The interface supports comprehensive annotation workflows:
+    - CSV annotation display
+    - Interactive text input and processing with immediate results
+    - Terminology selection and management with dynamic updates
+    - Real-time annotation results with detailed statistics
     - API endpoints for data exchange
+    
+    The web interface is designed to be user-friendly while providing
+    powerful annotation capabilities for both batch processing and
+    interactive text analysis.
     
     Attributes:
         TH_WEBUI: TextHelper instance for text processing

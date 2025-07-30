@@ -6,7 +6,16 @@ original and annotated content. It ensures that annotations are applied correctl
 and maintains data integrity throughout the annotation process.
 
 The validator performs bijective validation to ensure that annotated content
-can be reconstructed back to the original form by removing annotations.
+can be reconstructed back to the original form by removing annotations. It
+provides comprehensive error reporting and statistics collection for quality
+assessment.
+
+Key Features:
+- Data integrity checking and reporting
+- Original content reconstruction verification
+- Error tracking and statistics collection
+- Comprehensive validation reporting
+- Quality assessment metrics
 
 Classes:
     Validator: Main class for annotation validation

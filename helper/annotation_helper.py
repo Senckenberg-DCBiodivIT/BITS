@@ -1,5 +1,5 @@
 """
-AnnotationHelper Module
+AnnotationHelper Module - Annotation Processing and Result Formatting
 
 This module provides functionality for processing and applying terminology annotations
 to text content. It handles the creation of standardized terminology results and
@@ -7,19 +7,29 @@ manages the annotation process across datasets.
 
 The module supports multiple terminology sources and provides methods for
 creating consistent annotation results that can be used across different
-terminology services and APIs.
+terminology services and APIs. It includes support for MIDS (Minimum Information
+about a Digital Sequence) metadata and flexible annotation formatting.
+
+Key Features:
+- Standardized terminology result creation
+- Multi-source terminology support
+- MIDS metadata integration
+- Flexible annotation formatting
+- Dataset-wide annotation processing
+- Result validation and statistics
 
 Classes:
-    AnnotationHelper: Main class for annotation processing and terminology mapping
+    AnnotationHelper: Main class for annotation processing
 """
 
 import logging
+from datetime import datetime
 from typing import Dict, List, Any
 
 
 class AnnotationHelper:
     """
-    Helper class for handling annotation processing and terminology mapping.
+    Helper class for handling annotation processing.
     
     This class provides functionality for:
     - Creating standardized terminology results from API responses
@@ -67,12 +77,29 @@ class AnnotationHelper:
         # - TIB API uses 'short_form' field
         result_id = single_result.get("id") or single_result.get("short_form", "")
         
-        return {
+        result = {
             "id": result_id,
             "iri": single_result["iri"],
             "original_label": single_result["label"],
             "similarity": similarity
         }
+        
+        if self.mids_terms["enabled"]:
+            result["mids"] = {}
+            result["mids"]["identifier"] = self.mids_terms["identifier"]
+            result["mids"]["label"] = self.mids_terms["label"]
+            result["mids"]["description"] = self.mids_terms["description"]
+            result["mids"]["creator"] = self.mids_terms["creator"]
+            result["mids"]["digital_representation_type"] = self.mids_terms["digital_representation_type"]
+            result["mids"]["provenance"] = self.mids_terms["provenance"]
+
+
+            if self.mids_terms["creation_date"] != "default":
+                result["mids"]["creation_date"] = self.mids_terms["creation_date"]
+            else:
+                result["mids"]["creation_date"] = datetime.now().strftime("%Y-%m-%d")
+
+        return result
 
     def ah_annotate_dataset(self) -> None:
         """

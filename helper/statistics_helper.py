@@ -6,7 +6,17 @@ the annotation process. It tracks noun phrase identification, cache performance,
 AI service errors, and validation results.
 
 The module maintains statistics in a structured format and provides methods
-for persisting data to JSON files for later analysis.
+for persisting data to JSON files for later analysis. It supports comprehensive
+performance monitoring and quality assessment of the annotation workflow.
+
+Key Features:
+- Noun phrase identification statistics
+- Cache performance tracking (hits/misses)
+- AI service error monitoring
+- Validation result tracking
+- JSON-based statistics persistence
+- Performance metrics collection
+- Quality assessment reporting
 
 Classes:
     StatisticsHelper: Main class for statistics collection and management
