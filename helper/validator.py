@@ -65,23 +65,22 @@ class Validator:
 
         # Validate each row and field
         for item_index in range(len(self.load_json_loads)):  # Rows
-            for language in self.relevant_fields.keys():
-                for field in self.relevant_fields[language]:
-                    if field in self.load_json_loads[item_index].keys():
-                        original_field = self.original_json_loads[item_index][field]
-                        annotated_field = self.load_json_loads[item_index][field]
+            for field in self.relevant_fields:
+                if field in self.load_json_loads[item_index].keys():
+                    original_field = self.original_json_loads[item_index][field]
+                    annotated_field = self.load_json_loads[item_index][field]
 
-                        comparison = self.__compare_cells(
-                            original_field, annotated_field)
+                    comparison = self.__compare_cells(
+                        original_field, annotated_field)
 
-                        if comparison == False:
-                            error_flag = True
-                            self.sh_set_validation_error(
-                                f"{original_field}", f"{annotated_field}")
+                    if comparison == False:
+                        error_flag = True
+                        self.sh_set_validation_error(
+                            f"{original_field}", f"{annotated_field}")
 
-                        if error_flag != True:
-                            self.sh_set_validation_error(
-                                f"Error detected", f"False")
+                    if error_flag != True:
+                        self.sh_set_validation_error(
+                            f"Error detected", f"False")
 
     def __compare_cells(self, original: str, annotated: str) -> bool:
         """
