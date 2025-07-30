@@ -123,13 +123,57 @@
         }
 
         function formatTaxonField(taxonStr) {
-            return taxonStr.replace(/{'([^']+)':\s*({(?:{[^}]*}|[^}])*})}/g, (match, key, details) => {
+            // Handle the complete structure with outer key and inner objects
+            return taxonStr.replace(/{'([^']+)':\s*({.*})}/g, (match, key, details) => {
                 const tooltipId = 'tooltip-' + Math.random().toString(36).substr(2, 9);
                 const trimmedKey = key.trim().replace(/\s+$/, '');
-                return `<span class="annotation-link" 
-                             onmouseover="showTooltip('${tooltipId}')" 
-                             onmouseout="hideTooltip('${tooltipId}')">${trimmedKey}
-                        <span id="${tooltipId}" class="tooltip">${details.trim()}</span></span>`;
+                
+                // Try to parse the details to handle nested structures including 'mids'
+                try {
+                    // Find the complete structure by looking for balanced braces
+                    let braceCount = 0;
+                    let startIndex = details.indexOf('{');
+                    let endIndex = -1;
+                    
+                    for (let i = startIndex; i < details.length; i++) {
+                        if (details[i] === '{') {
+                            braceCount++;
+                        } else if (details[i] === '}') {
+                            braceCount--;
+                            if (braceCount === 0) {
+                                endIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // If we found balanced braces, use that complete structure
+                    let completeDetails = details;
+                    if (endIndex !== -1) {
+                        completeDetails = details.substring(0, endIndex + 1);
+                    }
+                    
+                    const cleanDetails = completeDetails
+                        .replace(/\'/g, '"')
+                        .replace(/([{,]\s*)([a-zA-Z_\s]+):/g, '$1"$2":');
+                    
+                    const detailsObj = JSON.parse(cleanDetails);
+                    const formattedDetails = JSON.stringify(detailsObj, null, 2)
+                        .replace(/"/g, '&quot;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;');
+                    
+                    return `<span class="annotation-link" 
+                                 onmouseover="showTooltip('${tooltipId}')" 
+                                 onmouseout="hideTooltip('${tooltipId}')">${trimmedKey}
+                            <span id="${tooltipId}" class="tooltip">${formattedDetails}</span></span>`;
+                } catch (e) {
+                    // Fallback to original behavior if parsing fails
+                    return `<span class="annotation-link" 
+                                 onmouseover="showTooltip('${tooltipId}')" 
+                                 onmouseout="hideTooltip('${tooltipId}')">${trimmedKey}
+                            <span id="${tooltipId}" class="tooltip">${details.trim()}</span></span>`;
+                }
             });
         }
 

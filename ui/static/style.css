@@ -200,7 +200,7 @@ button:hover {
     padding: 8px;
     border-radius: 4px;
     font-size: 14px;
-    max-width: 300px;
+    max-width: 1080px;
     z-index: 1000;
     white-space: pre-wrap;
     font-family: monospace;
