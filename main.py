@@ -84,8 +84,8 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         use_collection (bool): Whether to use collection-based terminology search
         use_all_ts (bool): Whether to use all available terminologies
         ignore_cell_value (List[str]): Values to ignore during processing
-        relevant_fields (Dict[str, List[str]]): Fields to process by language
-        max_iterations (int): Maximum number of iterations for processing
+        relevant_fields (List[str]): Fields to process for annotation
+        max_iterations (int, bool): Maximum number of iterations for processing
         max_threads (int): Maximum number of concurrent threads
         ai_use (Dict[str, bool]): Configuration for AI services
         load_json_loads (List[Dict[str, Any]]): Processed JSON data
@@ -165,9 +165,14 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         #               self.relevant_fields}")
 
         # Load and truncate JSON data based on max_iterations
-        self.load_json_loads = json.loads(
-            self.annotate_me_json)[0:self.max_iterations] if self.max_iterations < len(self.annotate_me_json) else json.loads(self.annotate_me_json)
-
+        if isinstance(self.max_iterations, bool) and self.max_iterations == True:
+            print("\n\nBOOL and TRUE\n\n")
+            self.load_json_loads = json.loads(self.annotate_me_json)
+        else:
+            print(f"\n\nNumber, self.max_iterations: {self.max_iterations}\n\n")
+            self.load_json_loads = json.loads(
+                self.annotate_me_json)[0:self.max_iterations] if self.max_iterations < len(self.annotate_me_json) else json.loads(self.annotate_me_json)
+    
         # logging.debug(f"ContentHandler, load_json_loads: {self.load_json_loads}")
 
         # Store original data for validation
