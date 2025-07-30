@@ -124,6 +124,7 @@
 
         function formatTaxonField(taxonStr) {
             // Handle the complete structure with outer key and inner objects
+            // Updated regex to handle keys with numbers, dots, slashes, etc.
             return taxonStr.replace(/{'([^']+)':\s*({.*})}/g, (match, key, details) => {
                 const tooltipId = 'tooltip-' + Math.random().toString(36).substr(2, 9);
                 const trimmedKey = key.trim().replace(/\s+$/, '');
@@ -206,10 +207,15 @@
                 // Kopiere das Objekt um das Original nicht zu verändern
                 const formattedObj = {...obj};
                 
-                // Formatiere nur das Taxon-Feld
-                if (formattedObj.Taxon) {
-                    formattedObj.Taxon = formatTaxonField(formattedObj.Taxon);
-                }
+                // Formatiere alle Felder, die Annotationen enthalten könnten
+                Object.keys(formattedObj).forEach(key => {
+                    if (typeof formattedObj[key] === 'string') {
+                        // Prüfe, ob der String Annotationen enthält (mit geschweiften Klammern)
+                        if (formattedObj[key].includes('{') && formattedObj[key].includes('}')) {
+                            formattedObj[key] = formatTaxonField(formattedObj[key]);
+                        }
+                    }
+                });
                 
                 // Erstelle HTML-Darstellung des Objekts
                 const entries = Object.entries(formattedObj).map(([key, value]) => {
