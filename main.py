@@ -5,11 +5,16 @@ This module provides the main entry point for the BITS annotation system.
 It orchestrates the entire annotation workflow including text processing,
 terminology matching, and result generation.
 
+The system integrates multiple AI services for noun phrase recognition and
+provides both batch processing and interactive web-based annotation capabilities.
+
 Setup Instructions:
 ------------------
 1. Package Requirements:
    - requests: pip3 install requests
    - spacy: pip3 install spacy
+   - gpt4all: pip3 install gpt4all
+   - flask: pip3 install flask
    
 2. Language Models:
    - English: python3 -m spacy download en_core_web_lg
@@ -18,16 +23,16 @@ Setup Instructions:
 Dependencies:
 ------------
 - helper.file_handler: File I/O operations, configuration handling
-- helper.cache: Caching mechanism
-- helper.validator: Data validation
-- helper.statistics_helper: Statistical analysis
-- helper.annotation_helper: Annotation processing
-- helper.bits_helper: BITS TS operations
-- helper.text_helper: Text processing utilities
-- ui.web_ui: Web UI functionality
+- helper.cache: Thread-safe caching mechanism
+- helper.validator: Data validation and integrity checking
+- helper.statistics_helper: Statistical analysis and reporting
+- helper.annotation_helper: Annotation processing and result formatting
+- helper.bits_helper: TIB terminology service operations
+- helper.text_helper: Text processing and noun phrase recognition
+- ui.web_ui: Web interface and API endpoints
 
 Classes:
-    ContentHandler: Main handler for content processing and annotation
+    ContentHandler: Main handler for content processing and annotation workflow
 """
 
 from helper.file_handler import FileHandler as File
@@ -54,16 +59,25 @@ logging.basicConfig(level=logging.DEBUG, format="%(levelname)s:%(message)s\n")
 
 class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
     """
-    Main handler for content processing and annotation.
+    Main handler for content processing and annotation workflow.
 
     This class inherits from multiple helper classes to provide comprehensive
-    functionality for text processing, BITS TS operations, annotations, statistics,
-    validation, caching, and file operations. It orchestrates the entire
-    annotation workflow from data loading to result generation.
+    functionality for text processing, TIB terminology service operations, 
+    annotations, statistics, validation, caching, and file operations. 
+    It orchestrates the entire annotation workflow from data loading to 
+    result generation.
 
     The class implements a multi-inheritance pattern to combine functionality
     from specialized helper classes while maintaining a clean interface for
-    the main application logic.
+    the main application logic. This design allows for modular functionality
+    while providing a unified interface for the annotation system.
+
+    The workflow includes:
+    1. Data loading and preprocessing
+    2. Noun phrase recognition using AI services
+    3. Terminology matching against TIB service
+    4. Annotation application and validation
+    5. Result export and statistics collection
 
     Attributes:
         explicit_terminologies (List[str]): Configuration for explicit terminology sources
@@ -76,6 +90,8 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         ai_use (Dict[str, bool]): Configuration for AI services
         load_json_loads (List[Dict[str, Any]]): Processed JSON data
         original_json_loads (List[Dict[str, Any]]): Original data for validation
+        fallback_translation_libretranslate (Dict[str, Any]): Translation service configuration
+        mids_terms (Dict[str, Any]): MIDS terms configuration for metadata
     """
 
     def __init__(self) -> None:
@@ -123,22 +139,27 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
 
     def __handle_json_loads(self) -> None:
         """
-        Process JSON data for annotation.
+        Process JSON data for annotation workflow.
         
         This method orchestrates the complete annotation workflow:
         1. Load and truncate JSON data based on max_iterations
-        2. Create a deep copy for validation
+        2. Create a deep copy for validation purposes
         3. Process each item across relevant fields and languages
-        4. Perform noun phrase recognition
-        5. Handle BITS requests based on terminology configuration
-        6. Annotate the dataset
+        4. Perform noun phrase recognition using configured AI services
+        5. Handle TIB terminology service requests based on configuration
+        6. Apply annotations to the dataset
         7. Export results if configured
         8. Validate results if configured
         9. Persist statistics and cache if configured
         
         The method processes data in a structured manner, ensuring that
         all steps are completed before moving to the next phase of
-        the annotation pipeline.
+        the annotation pipeline. It maintains data integrity throughout
+        the process and provides comprehensive logging for debugging.
+        
+        The workflow supports multiple AI services (spaCy, GPT4All, Ollama)
+        and can handle different terminology source configurations including
+        explicit terminologies, collections, or complete terminology searches.
         """
         # logging.debug(f"ContentHandler, handle loads for the relevant fields: {
         #               self.relevant_fields}")
@@ -205,15 +226,20 @@ if __name__ == "__main__":
     """
     Main execution block for content annotation processing.
     
-    This block serves as the entry point for the annotation system.
-    It measures and logs execution time, and provides user feedback
-    about the process completion.
+    This block serves as the entry point for the BITS annotation system.
+    It initializes the ContentHandler, measures execution time, and provides
+    user feedback about the process completion. The system supports both
+    command-line processing and web interface access.
     
     The execution flow:
-    1. Create ContentHandler instance
+    1. Create ContentHandler instance (initializes all helper classes)
     2. Log WebUI availability if enabled
     3. Measure and log execution time
     4. Wait for user input before exit
+    
+    The system automatically starts the web interface in a separate thread
+    if enabled in the configuration, allowing for interactive annotation
+    while batch processing continues in the background.
     """
     start_time = time.time()
     annotator = ContentHandler()

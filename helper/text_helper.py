@@ -1,12 +1,21 @@
 """
-TextHelper Module
+TextHelper Module - BITS Text Processing and Noun Phrase Recognition
 
 This module provides comprehensive text processing and noun phrase recognition
 functionality using multiple AI services. It supports SpaCy for NLP tasks,
 GPT4All for local AI processing, and Ollama for remote AI services.
 
 The module handles text preprocessing, noun phrase extraction, and provides
-thread-safe processing capabilities for improved performance.
+thread-safe processing capabilities for improved performance. It supports
+both English and German language processing with language-specific models.
+
+Key Features:
+- Multi-language noun phrase recognition (English/German)
+- Multiple AI service integration (spaCy, GPT4All, Ollama)
+- Thread-safe processing for improved performance
+- Text normalization and preprocessing
+- Semantic similarity matching
+- Translation support for cross-language processing
 
 Classes:
     TextHelper: Main class for text processing and noun phrase recognition
@@ -34,12 +43,23 @@ class TextHelper:
     """
     A helper class for text processing and noun phrase (NP) recognition using multiple AI services.
 
-    This class provides functionality to:
-    - Process text using SpaCy for English and German language models
-    - Extract noun phrases using local GPT4All models
-    - Support for additional AI services (GPT4All online and Ollama)
+    This class provides comprehensive functionality for text analysis and noun phrase
+    extraction using multiple AI services. It supports both English and German
+    language processing with specialized models for each language.
+
+    The class integrates multiple AI services:
+    - SpaCy: Fast and accurate NLP processing for English and German
+    - GPT4All Local: Local AI processing for enhanced noun phrase extraction
+    - GPT4All Service: AI processing for high accuracy
+    - Ollama: Flexible AI processing with customizable models
+
+    Key Features:
+    - Multi-language support (English/German)
     - Thread-safe processing for improved performance
     - Text preprocessing and normalization
+    - Similarity matching
+    - Translation support for cross-language processing
+    - Configurable AI service selection
 
     Attributes:
         SIMILARITY_ACK (float): Similarity acknowledgment threshold (0.90)
@@ -51,6 +71,7 @@ class TextHelper:
         __th_gpt4all_local_np_collection (Set[str]): Noun phrases from local GPT4All
         __th_gpt4all_service_np_collection (Set[str]): Noun phrases from GPT4All service
         __th_ollama_np_collection (Set[str]): Noun phrases from Ollama service
+        __th_spacy_np_collection_lock (Lock): Thread lock for safe concurrent access
     """
 
     SIMILARITY_ACK = 0.90

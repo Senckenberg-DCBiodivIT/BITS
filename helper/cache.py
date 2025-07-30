@@ -6,7 +6,16 @@ persistence capabilities. It implements a two-level dictionary cache structure
 that can store query results either by terminology and item or just by item.
 
 The cache includes automatic expiration of entries based on a time window
-and provides persistence to/from JSON file for long-term storage.
+and provides persistence to/from JSON file for long-term storage. It is
+designed for high-performance terminology service queries with minimal
+memory overhead.
+
+Key Features:
+- Thread-safe caching with lock mechanisms
+- Automatic cache expiration (1 week default)
+- JSON-based persistence for long-term storage
+- Performance statistics tracking
+- Configurable cache time windows
 
 Classes:
     Cache: Main class for thread-safe caching with persistence

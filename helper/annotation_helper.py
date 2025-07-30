@@ -1,5 +1,5 @@
 """
-AnnotationHelper Module
+AnnotationHelper Module - Annotation Processing and Result Formatting
 
 This module provides functionality for processing and applying terminology annotations
 to text content. It handles the creation of standardized terminology results and
@@ -7,10 +7,19 @@ manages the annotation process across datasets.
 
 The module supports multiple terminology sources and provides methods for
 creating consistent annotation results that can be used across different
-terminology services and APIs.
+terminology services and APIs. It includes support for MIDS (Minimum Information
+about a Digital Sequence) metadata and flexible annotation formatting.
+
+Key Features:
+- Standardized terminology result creation
+- Multi-source terminology support
+- MIDS metadata integration
+- Flexible annotation formatting
+- Dataset-wide annotation processing
+- Result validation and statistics
 
 Classes:
-    AnnotationHelper: Main class for annotation processing and terminology mapping
+    AnnotationHelper: Main class for annotation processing
 """
 
 import logging
@@ -20,7 +29,7 @@ from typing import Dict, List, Any
 
 class AnnotationHelper:
     """
-    Helper class for handling annotation processing and terminology mapping.
+    Helper class for handling annotation processing.
     
     This class provides functionality for:
     - Creating standardized terminology results from API responses

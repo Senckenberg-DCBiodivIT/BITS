@@ -1,13 +1,22 @@
 """
-BitsHelper Module
+BitsHelper Module - BITS TIB Terminology Service Integration
 
 This module provides functionality for handling terminology requests and annotations
-using the TIB API. It manages semantic similarity matching against various
-terminologies and supports different request types including explicit terminologies,
-collections, and complete terminology searches.
+using the TIB API. It manages semantic similarity matching against various terminologies
+and supports different request types including explicit terminologies, collections,
+and complete terminology searches.
 
 The module integrates with the TIB terminology service API to perform semantic
-matching and provides caching capabilities for improved performance.
+matching and provides caching capabilities for improved performance. It supports
+multiple terminology sources and provides flexible search configurations.
+
+Key Features:
+- TIB API integration for terminology searches
+- Semantic similarity matching using SpaCy
+- Multiple request types (explicit, collection, all terminologies)
+- Caching support for improved performance
+- Configurable result limits and filtering
+- Error handling and logging
 
 Classes:
     BitsHelper: Main class for terminology requests and semantic matching
@@ -23,16 +32,20 @@ class BitsHelper:
     """
     A helper class for managing terminology requests and semantic matching.
     
-    This class provides functionality to search and match terms against various
-    terminologies using semantic similarity matching. It supports multiple request
-    types and integrates with the TIB terminology service API.
+    This class provides comprehensive functionality to search and match terms 
+    against various terminologies using semantic similarity matching. It supports 
+    multiple request types and integrates with the TIB terminology service API.
     
-    The class handles:
-    - Explicit terminology searches
-    - Collection-based searches
-    - Complete terminology searches
-    - Semantic similarity matching using SpaCy
-    - Caching of query results
+    The class handles different types of terminology searches:
+    - Explicit terminology searches: Search in specific terminologies
+    - Collection-based searches: Search within specified collections
+    - Complete terminology searches: Search across all available terminologies
+    - Semantic similarity matching using SpaCy for accurate term matching
+    - Caching of query results for improved performance
+    
+    The class provides flexible configuration options and supports various
+    terminology sources, making it suitable for different use cases and
+    research domains.
     
     Attributes:
         bh_request_results (Dict[str, Dict[str, Dict]]): A nested dictionary storing
