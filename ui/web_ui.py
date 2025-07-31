@@ -68,14 +68,7 @@ class WebUI:
         self.TH_WEBUI = TH
         self.selected_terminologies = []  # Initialize empty list for selected terminologies
         
-        TH_config = {"ai_use": {"spacy": True, # TODO: Use the config from the main.py after the refactoring
-                                "ollama": False,
-                                "gpt4all": False,
-                                "gpt4all_local": False},
-                     "max_threads": self.config["max_threads"],
-                     "ignore_cell_value": ""
-                     }
-        self.TH_WEBUI.__init__(TH_config)
+        self.TH_WEBUI.__init__(self.config)
 
         """
         Initialize the WebUI with Flask app and routes
@@ -155,7 +148,8 @@ class WebUI:
             return render_template('csv_annotation.html',
                                    noun_groups=self.th_np_collection,
                                    annotated_noun_groups=self.bh_request_results,
-                                   performed_annotation=self.load_json_loads)
+                                   performed_annotation=self.load_json_loads,
+                                   compact_view=self.config["web_ui"]["compact_view"] == "True")
         except Exception as e:
             logging.error(f"Error in function __show_csv_annotation: {str(e)}")
             return f"Error in function __show_csv_annotation: {str(e)}"

@@ -31,6 +31,7 @@
     },
     "web_ui": {
         "enabled": "True",
+        "compact_view": "True",
         "port": 5001,
         "open_browser": "True"
     },
