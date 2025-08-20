@@ -64,6 +64,7 @@ class AnnotationHelper:
                 - iri: The Internationalized Resource Identifier
                 - original_label: The original terminology label
                 - similarity: The similarity score
+                - mids: Metadata information (only if enabled)
                 
         Example:
             >>> helper = AnnotationHelper()
@@ -84,6 +85,7 @@ class AnnotationHelper:
             "similarity": similarity
         }
         
+        # Only create mids object if mids_terms is enabled
         if self.mids_terms["enabled"]:
             result["mids"] = {}
             result["mids"]["identifier"] = self.mids_terms["identifier"]
@@ -92,7 +94,6 @@ class AnnotationHelper:
             result["mids"]["creator"] = self.mids_terms["creator"]
             result["mids"]["digital_representation_type"] = self.mids_terms["digital_representation_type"]
             result["mids"]["provenance"] = self.mids_terms["provenance"]
-
 
             if self.mids_terms["creation_date"] != "default":
                 result["mids"]["creation_date"] = self.mids_terms["creation_date"]

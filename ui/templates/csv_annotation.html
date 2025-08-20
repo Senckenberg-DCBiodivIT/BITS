@@ -144,7 +144,7 @@
                 const tooltipId = 'tooltip-' + Math.random().toString(36).substr(2, 9);
                 const trimmedKey = key.trim().replace(/\s+$/, '');
                 
-                // Try to parse the details to handle nested structures including 'mids'
+                // Try to parse the details to handle nested structures
                 try {
                     // Find the complete structure by looking for balanced braces
                     let braceCount = 0;
@@ -174,7 +174,39 @@
                         .replace(/([{,]\s*)([a-zA-Z_\s]+):/g, '$1"$2":');
                     
                     const detailsObj = JSON.parse(cleanDetails);
-                    const formattedDetails = JSON.stringify(detailsObj, null, 2)
+                    
+                    // Create a generic formatted display that works with any object structure
+                    let formattedDetails = '';
+                    
+                    // Generic function to format any object structure recursively
+                    function formatObject(obj, indent = 0) {
+                        const spaces = '  '.repeat(indent);
+                        let result = '';
+                        
+                        if (typeof obj === 'object' && obj !== null) {
+                            Object.entries(obj).forEach(([key, value]) => {
+                                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                                    // Nested object
+                                    result += `${spaces}${key}:\n`;
+                                    result += formatObject(value, indent + 1);
+                                } else if (typeof value === 'string' && value.startsWith('http')) {
+                                    // URL/IRI - make it clickable
+                                    result += `${spaces}${key}: <a href="${value}" target="_blank">${value}</a>\n`;
+                                } else {
+                                    // Simple value
+                                    result += `${spaces}${key}: ${value}\n`;
+                                }
+                            });
+                        } else {
+                            result = `${spaces}${obj}\n`;
+                        }
+                        
+                        return result;
+                    }
+                    
+                    formattedDetails = formatObject(detailsObj);
+                    
+                    const escapedDetails = formattedDetails
                         .replace(/"/g, '&quot;')
                         .replace(/</g, '&lt;')
                         .replace(/>/g, '&gt;');
@@ -182,9 +214,10 @@
                     return `<span class="annotation-link" 
                                  onmouseover="showTooltip('${tooltipId}')" 
                                  onmouseout="hideTooltip('${tooltipId}')">${trimmedKey}
-                            <span id="${tooltipId}" class="tooltip">${formattedDetails}</span></span>`;
+                            <span id="${tooltipId}" class="tooltip">${escapedDetails}</span></span>`;
                 } catch (e) {
                     // Fallback to original behavior if parsing fails
+                    console.warn('Error parsing annotation details:', e);
                     return `<span class="annotation-link" 
                                  onmouseover="showTooltip('${tooltipId}')" 
                                  onmouseout="hideTooltip('${tooltipId}')">${trimmedKey}
