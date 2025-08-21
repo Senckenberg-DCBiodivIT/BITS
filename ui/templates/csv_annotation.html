@@ -189,8 +189,8 @@
                                     result += `${spaces}${key}:\n`;
                                     result += formatObject(value, indent + 1);
                                 } else if (typeof value === 'string' && value.startsWith('http')) {
-                                    // URL/IRI - make it clickable
-                                    result += `${spaces}${key}: <a href="${value}" target="_blank">${value}</a>\n`;
+                                    // URL/IRI - show as plain text
+                                    result += `${spaces}${key}: ${value}\n`;
                                 } else {
                                     // Simple value
                                     result += `${spaces}${key}: ${value}\n`;
