@@ -43,6 +43,14 @@ echo "Installing python-Levenshtein..."
 sudo apt install -y python3-levenshtein
 
 echo ""
+echo "Updating packages for numpy 2.x compatibility..."
+echo "Updating pandas to latest version..."
+pip3 install --upgrade pandas --break-system-packages
+
+echo "Updating numexpr and bottleneck for numpy 2.x compatibility..."
+pip3 install --upgrade numexpr bottleneck --break-system-packages
+
+echo ""
 echo "Installing packages that may not be available via apt..."
 
 # Install packages that may not be available via apt
