@@ -145,15 +145,11 @@ class WebUI:
             Exception: If template rendering fails
         """
         try:
-            # compact_view is already a boolean value
-            compact_view = self.config["web_ui"]["compact_view"]
-            logging.debug(f"compact_view setting: {compact_view}, type: {type(compact_view)}")
-            
             return render_template('csv_annotation.html',
                                    noun_groups=self.th_np_collection,
                                    annotated_noun_groups=self.bh_request_results,
                                    performed_annotation=self.load_json_loads,
-                                   compact_view=compact_view)
+                                   compact_view=self.config["web_ui"]["compact_view"])
         except Exception as e:
             logging.error(f"Error in function __show_csv_annotation: {str(e)}")
             return f"Error in function __show_csv_annotation: {str(e)}"
