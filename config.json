@@ -31,12 +31,12 @@
     },
     "web_ui": {
         "enabled": "True",
-        "compact_view": "True",
+        "compact_view": "true",
         "port": 5001,
         "open_browser": "True"
     },
     "mids_terms": {
-        "enabled": "True",
+        "enabled": "false",
         
         "identifier": "test_dataset",
         "label": "TEST 01",

@@ -223,7 +223,7 @@ class WebUI:
 
             logging.debug(f"self.TH_WEBUI.th_cells: {self.TH_WEBUI.th_cells}")
 
-            # Detect NP
+            # Detect NP, result is self.TH_WEBUI.th_np_collection
             self.TH_WEBUI.th_np_recognition()
 
             # Only proceed with annotation if terminologies are selected
@@ -232,10 +232,10 @@ class WebUI:
 
             # Annotate NP in a threaded process
             annotation_done = self.bh_request_explicit_terminologies(
-                self.TH_WEBUI.th_np_collection)
+                self.TH_WEBUI.th_np_collection, self.selected_terminologies)
 
             # Perform Annotation
-            annotated_content = self.ah_annotate_cell(content)
+            annotated_content = self.ah_annotate_cell(content, annotation_done)
             logging.debug(f"annotated_content: {annotated_content}")
 
             # Finish

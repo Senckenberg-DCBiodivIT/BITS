@@ -248,7 +248,7 @@ class BitsHelper:
 
         return result_temp
 
-    def bh_request_explicit_terminologies(self, np_collection: Set[str]) -> Dict[str, Dict[str, Dict]]:
+    def bh_request_explicit_terminologies(self, np_collection: Set[str], interactive_explicit_terminologies: List[str]=[]) -> Dict[str, Dict[str, Dict]]:
         """
         Processes requests for explicitly specified terminologies.
         
@@ -261,6 +261,13 @@ class BitsHelper:
         
         Args:
             np_collection (Set[str]): Collection of noun phrases to search for
+            interactive_explicit_terminologies (List[str], optional): List of specific
+                terminologies to search in. If provided, overrides the default
+                explicit_terminologies configuration. If empty list, uses the
+                configured explicit_terminologies. This parameter is essential for
+                interactive annotating using the UI, allowing users to dynamically
+                select which terminologies to search during the annotation process.
+                Defaults to empty list.
             
         Returns:
             Dict[str, Dict[str, Dict]]: Dictionary containing search results for each
@@ -277,12 +284,14 @@ class BitsHelper:
             item_normalized_translated = ""
             if self.fallback_translation_libretranslate["enabled"]:
                 item_normalized_translated = self.th_language_translation(item_normalized, self.fallback_translation_libretranslate["source_language"], self.fallback_translation_libretranslate["target_language"])
-                print(f"\nitem_normalized_translated: {item_normalized_translated}\n")
+                print(f"\nitem: {item}, item_normalized_translated: {item_normalized_translated}\n")
             
             self.sh_set_np_translation(item, item_normalized_translated)
+            print(f"Statistics done. Start FOR loop for terminology names in self.explicit_terminologies: {self.explicit_terminologies}") 
 
-            for terminology_name in self.explicit_terminologies:
+            for terminology_name in self.explicit_terminologies if interactive_explicit_terminologies == [] else interactive_explicit_terminologies:
                 # Check query cache. Maybe there is a result from another one instance or a stored result
+                print(f"\nterminology_name: {terminology_name}\n")
                 
                 # cache_result = self.cache_get_query_item(
                 #     terminology_name, item_normalized)
