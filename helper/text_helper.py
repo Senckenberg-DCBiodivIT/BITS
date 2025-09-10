@@ -453,6 +453,9 @@ class TextHelper:
         not parts of words. This is useful for preserving annotation markers
         during text processing.
         
+        The function also ignores newline characters (\n) when searching for
+        matches, allowing replacements across line breaks.
+        
         Args:
             text (str): The input text to process
             old (str): The word to replace (must be a complete word)
@@ -486,6 +489,12 @@ class TextHelper:
             >>> result = helper.th_replace_except_braces(text, "the", "a")
             >>> print(result)
             "The computer processes data. The cathedral is beautiful."
+            
+            >>> # Replacement across newlines
+            >>> text = "Hier war es kalt\nund nass, aber sonnig."
+            >>> result = helper.th_replace_except_braces(text, "kalt\nund nass", "warm und windig")
+            >>> print(result)
+            "Hier war es warm und windig, aber sonnig."
         """
         # Handle None values
         if text is None:
@@ -495,9 +504,12 @@ class TextHelper:
 
         for i in range(len(segments)):
             if not segments[i].startswith('{') and not segments[i].endswith('}'):
+                # Create a pattern that ignores newlines in the search string
+                # Replace \n with \s* to match any whitespace including newlines
+                old_pattern = re.escape(old).replace(r'\n', r'\s*')
                 # Use word boundaries to replace only complete words
                 # Replace exact matches only (case-sensitive)
-                segments[i] = re.sub(r'\b' + re.escape(old) + r'\b', new, segments[i])
+                segments[i] = re.sub(r'\b' + old_pattern + r'\b', new, segments[i])
 
         return ''.join(segments)
 
