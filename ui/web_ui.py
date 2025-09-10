@@ -234,7 +234,11 @@ class WebUI:
             annotation_done = self.bh_request_explicit_terminologies(
                 self.TH_WEBUI.th_np_collection, self.selected_terminologies)
 
+            print(f"\n\n\nannotation_done: {annotation_done}")
+
             # Perform Annotation
+            print("Call self.ah_annotate_cell")
+
             annotated_content = self.ah_annotate_cell(content, annotation_done)
             logging.debug(f"annotated_content: {annotated_content}")
 
