@@ -32,6 +32,11 @@
             </div>
             <div class="terminology-controls">
                 <span id="terminology-stats" class="terminology-stats">0/0 terminologies selected</span>
+                <div class="selection-buttons">
+                    <button type="button" onclick="selectRandom()" class="selection-btn random-btn">Random Selection</button>
+                    <button type="button" onclick="selectAll()" class="selection-btn all-btn">All</button>
+                    <button type="button" onclick="selectNone()" class="selection-btn none-btn">None</button>
+                </div>
             </div>
         </div>
 
@@ -175,6 +180,36 @@
             if (tooltip) {
                 tooltip.style.display = 'none';
             }
+        }
+
+        function selectRandom() {
+            const checkboxes = document.querySelectorAll('input[name="terminology"]');
+            const totalCount = checkboxes.length;
+            
+            // Clear all selections first
+            checkboxes.forEach(cb => cb.checked = false);
+            
+            // Select random number of terminologies (between 1 and total/2)
+            const randomCount = Math.floor(Math.random() * Math.max(1, Math.floor(totalCount / 2))) + 1;
+            const shuffled = Array.from(checkboxes).sort(() => 0.5 - Math.random());
+            
+            for (let i = 0; i < randomCount; i++) {
+                shuffled[i].checked = true;
+            }
+            
+            handleTerminologyChange();
+        }
+
+        function selectAll() {
+            const checkboxes = document.querySelectorAll('input[name="terminology"]');
+            checkboxes.forEach(cb => cb.checked = true);
+            handleTerminologyChange();
+        }
+
+        function selectNone() {
+            const checkboxes = document.querySelectorAll('input[name="terminology"]');
+            checkboxes.forEach(cb => cb.checked = false);
+            handleTerminologyChange();
         }
 
         function annotateContent() {

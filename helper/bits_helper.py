@@ -205,6 +205,7 @@ class BitsHelper:
         """
         # logging.info(
         #     f"__create_item_results_from_query for {item_normalized} and result: {query_result}")
+        print(f"__create_item_results_from_query for {item_normalized}")
 
         language = "en" # here we use english for the similarity check. It seems not to be a problem for the similarity check for german terms as well. 
 

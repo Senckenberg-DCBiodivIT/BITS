@@ -167,6 +167,7 @@ class AnnotationHelper:
 
 
         logging.debug(f"AnnotationHelper, ah_annotate_cell: {cell}")
+        logging.debug(f"self.bh_request_results: {self.bh_request_results}")
 
         print("\n\nStart to annotate cell\n")
         for annotation_key in sorted_keys:
