@@ -1,7 +1,7 @@
 {
     "version": 0.5,
     "annotation": {
-        "input_file": "confidential/Sammlung_Kennzeichen.csv",
+        "input_file": "confidential/1row.csv",
         "output_file": "csv/annotated_test.csv",
         "perform_export": "False",
         "perform_validation": "True",
@@ -10,9 +10,8 @@
             "collection": "False"
         },
         "relevant_fields": [
-            "113/113.1",
-            "113.2",
-            "161/161.1"
+            "Beschreibung 1",
+            "Mineralvorbild Originalbezeichnung"
         ],
         "ignore_cell_value":["-", "null"],
         "max_iterations": 5
