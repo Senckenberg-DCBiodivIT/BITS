@@ -205,6 +205,7 @@ class BitsHelper:
         """
         # logging.info(
         #     f"__create_item_results_from_query for {item_normalized} and result: {query_result}")
+        print(f"__create_item_results_from_query for {item_normalized}, \nterminology_name: {terminology_name}, \nresult_temp: {result_temp}")
 
         language = "en" # here we use english for the similarity check. It seems not to be a problem for the similarity check for german terms as well. 
 
@@ -221,34 +222,33 @@ class BitsHelper:
                     
                 label = self.SPACY_HANDLER[language](
                     single_result["label"].lower())
-                # print(f"single_result: {single_result}")
+                print(f"label: {label}")
 
-                # If we have a terminology name, we can check if the result is already in the result_temp
-                # If there is no specific terminology name, we have to use each result for each terminology.
-                if (terminology_name != "" and terminology_name in result_temp.keys()) or terminology_name == "":
-                    terminology_name_single_result = terminology_name if terminology_name != "" else single_result["ontology_name"]
-                    #similarity_factor = item_normalized_similarity.similarity(
-                    #    label)
-                    similarity_factor = self.th_similarity_check(item_normalized, label)
-                    if item_normalized_translated != "":
-                        similarity_factor_translated = self.th_similarity_check(item_normalized_translated, label)
-                        similarity_factor = max(similarity_factor, similarity_factor_translated)
-                    # print(f"Similarity: {similarity_factor}")
-                    
-                    if similarity_factor >= self.SIMILARITY_ACK:
-                        # print("similarity_factor ok")
-                        # Check if we need to update an existing result or create a new one
-                        existing_result = result_temp.get(terminology_name_single_result)
-                        if existing_result is None or existing_result["similarity"] < similarity_factor:
-                            result_temp[terminology_name_single_result] = self.ah_create_terminology_result(
-                                single_result, similarity_factor)
+                # If we have a terminology name, use it. Otherwise, use the ontology name from the result.
+                terminology_name_single_result = terminology_name if terminology_name != "" else single_result["ontology_name"]
+                #similarity_factor = item_normalized_similarity.similarity(
+                #    label)
+                similarity_factor = self.th_similarity_check(item_normalized, label)
+                if item_normalized_translated != "":
+                    similarity_factor_translated = self.th_similarity_check(item_normalized_translated, label)
+                    similarity_factor = max(similarity_factor, similarity_factor_translated)
+                print(f"Similarity: {similarity_factor}")
+                
+                if similarity_factor >= self.SIMILARITY_ACK:
+                    # print("similarity_factor ok")
+                    # Check if we need to update an existing result or create a new one
+                    existing_result = result_temp.get(terminology_name_single_result)
+                    if existing_result is None or existing_result["similarity"] < similarity_factor:
+                        result_temp[terminology_name_single_result] = self.ah_create_terminology_result(
+                            single_result, similarity_factor)
 
         else:
-            pass  # Here it's about a helper like "query_time" or other results, we can't use for an annotation. Just ignore them
+            pass  # Just ignore them
 
+        print(f"__create_item_results_from_query, result_temp: {result_temp}")
         return result_temp
 
-    def bh_request_explicit_terminologies(self, np_collection: Set[str]) -> Dict[str, Dict[str, Dict]]:
+    def bh_request_explicit_terminologies(self, np_collection: Set[str], interactive_explicit_terminologies: List[str]=[]) -> Dict[str, Dict[str, Dict]]:
         """
         Processes requests for explicitly specified terminologies.
         
@@ -261,6 +261,13 @@ class BitsHelper:
         
         Args:
             np_collection (Set[str]): Collection of noun phrases to search for
+            interactive_explicit_terminologies (List[str], optional): List of specific
+                terminologies to search in. If provided, overrides the default
+                explicit_terminologies configuration. If empty list, uses the
+                configured explicit_terminologies. This parameter is essential for
+                interactive annotating using the UI, allowing users to dynamically
+                select which terminologies to search during the annotation process.
+                Defaults to empty list.
             
         Returns:
             Dict[str, Dict[str, Dict]]: Dictionary containing search results for each
@@ -274,15 +281,21 @@ class BitsHelper:
             result_temp = dict()
 
             # Check if fallback translation is enabled and get translated term
-            item_normalized_translated = ""
+            item_normalized_translated = self.th_language_translation(
+                item_normalized,
+                self.fallback_translation_libretranslate["source_language"],
+                self.fallback_translation_libretranslate["target_language"]
+            ) if self.fallback_translation_libretranslate["enabled"] else ""
+            
             if self.fallback_translation_libretranslate["enabled"]:
-                item_normalized_translated = self.th_language_translation(item_normalized, self.fallback_translation_libretranslate["source_language"], self.fallback_translation_libretranslate["target_language"])
-                print(f"\nitem_normalized_translated: {item_normalized_translated}\n")
+                print(f"\nitem: {item}, item_normalized_translated: {item_normalized_translated}\n")
             
             self.sh_set_np_translation(item, item_normalized_translated)
+            print(f"Statistics done. Start FOR loop for terminology names in self.explicit_terminologies: {self.explicit_terminologies}") 
 
-            for terminology_name in self.explicit_terminologies:
+            for terminology_name in self.explicit_terminologies if interactive_explicit_terminologies == [] else interactive_explicit_terminologies:
                 # Check query cache. Maybe there is a result from another one instance or a stored result
+                print(f"\nterminology_name: {terminology_name}\n")
                 
                 # cache_result = self.cache_get_query_item(
                 #     terminology_name, item_normalized)
@@ -302,15 +315,19 @@ class BitsHelper:
                     url = self.__TIB_URL_SEARCH + f'ontology={terminology_name}&q={item_normalized}'
                     # logging.debug(f"bh_request_explicit_terminologies, url, handler: {url}")   
                     query_result = self.__perform_query_search(url)
+                    print(f"\nquery_result: {query_result}\n")
 
                     # self.cache_set_query_item(  TODO: Enable Cache later, after all kinds of requests are implemented
                     #     terminology_name, item_normalized, query_result)
 
                 # Here we have cached results and query responses for each terminology.
+                print("\n\n\nCall __create_item_results_from_query")
                 result_temp = self.__create_item_results_from_query(
                     query_result, item_normalized, result_temp, terminology_name, item_normalized_translated)
-           
+                print(f"result_temp in bh_request_explicit_terminologies: {result_temp}")    
             BitsHelper.bh_request_results[item] = result_temp
+            print(f"BitsHelper.bh_request_results[item]: {BitsHelper.bh_request_results[item]}")    
+
 
         return BitsHelper.bh_request_results # For the WebUI or in general for the external requests
 

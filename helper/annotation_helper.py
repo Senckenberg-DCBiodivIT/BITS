@@ -64,6 +64,7 @@ class AnnotationHelper:
                 - iri: The Internationalized Resource Identifier
                 - original_label: The original terminology label
                 - similarity: The similarity score
+                - mids: Metadata information (only if enabled)
                 
         Example:
             >>> helper = AnnotationHelper()
@@ -84,6 +85,7 @@ class AnnotationHelper:
             "similarity": similarity
         }
         
+        # Only create mids object if mids_terms is enabled
         if self.mids_terms["enabled"]:
             result["mids"] = {}
             result["mids"]["identifier"] = self.mids_terms["identifier"]
@@ -92,7 +94,6 @@ class AnnotationHelper:
             result["mids"]["creator"] = self.mids_terms["creator"]
             result["mids"]["digital_representation_type"] = self.mids_terms["digital_representation_type"]
             result["mids"]["provenance"] = self.mids_terms["provenance"]
-
 
             if self.mids_terms["creation_date"] != "default":
                 result["mids"]["creation_date"] = self.mids_terms["creation_date"]
@@ -134,7 +135,7 @@ class AnnotationHelper:
 
         self.__set_statistics()
 
-    def ah_annotate_cell(self, cell: str, sorted_keys: List[str] = None) -> str:
+    def ah_annotate_cell(self, cell: str, interactive_annotation_keys: List[str] = None) -> str:
         """
         Annotates a single cell's content with matching terminology.
         
@@ -145,7 +146,7 @@ class AnnotationHelper:
         
         Args:
             cell (str): The cell content to be annotated
-            sorted_keys (List[str], optional): Sorted list of annotation keys to apply.
+            interactive_annotation_keys (List[str], optional): Sorted list of annotation keys to apply.
                 If None, keys will be sorted by length in descending order.
                 
         Returns:
@@ -159,20 +160,30 @@ class AnnotationHelper:
             >>> print(result)
             "This contains {'metal oxide': {...}} and other materials"
         """
-        if sorted_keys is None:
-            sorted_keys = self.__sort_keys(self.bh_request_results)
+        sorted_keys = self.__sort_keys(self.bh_request_results) if interactive_annotation_keys is None else self.__sort_keys(interactive_annotation_keys)
+        
+
+        print(f"\n\nTry to annotate cell: {cell} \n\nwith sorted_keys: {sorted_keys}\n\n")
+
 
         logging.debug(f"AnnotationHelper, ah_annotate_cell: {cell}")
+        logging.debug(f"self.bh_request_results: {self.bh_request_results}")
+
+        print("\n\nStart to annotate cell\n")
         for annotation_key in sorted_keys:
+
+            if annotation_key in cell:
+                print(f"annotation_key in Cell: {annotation_key}, value is: {self.bh_request_results[annotation_key]}")
+            
             cell = self.th_replace_except_braces(
                 cell, annotation_key, str({annotation_key: self.bh_request_results[annotation_key]})) if self.bh_request_results[annotation_key] != {} else cell
 
         logging.debug(f"AnnotationHelper, return cell: {cell}")    
         return cell
 
-    def __sort_keys(self, target: Dict[str, Any]) -> List[str]:
+    def __sort_keys(self, target: 'list[str] | dict[str, object]') -> List[str]:
         """
-        Sorts dictionary keys by length in descending order.
+        Sorts items by length in descending order.
         
         This method is used to prioritize longer terminology matches
         over shorter ones during annotation. This prevents shorter
@@ -180,10 +191,10 @@ class AnnotationHelper:
         terminology matches.
         
         Args:
-            target (Dict[str, Any]): Dictionary whose keys need to be sorted
+            target: Dictionary whose keys need to be sorted, or List of strings to be sorted
             
         Returns:
-            List[str]: Sorted list of keys in descending length order
+            List[str]: Sorted list of items in descending length order
             
         Example:
             >>> helper = AnnotationHelper()
@@ -191,8 +202,18 @@ class AnnotationHelper:
             >>> sorted_keys = helper.__sort_keys(keys)
             >>> print(sorted_keys)
             ['metal oxide', 'metal', 'oxide']
+            
+            >>> items = ["metal", "metal oxide", "oxide"]
+            >>> sorted_items = helper.__sort_keys(items)
+            >>> print(sorted_items)
+            ['metal oxide', 'metal', 'oxide']
         """
-        return sorted(target.keys(), key=lambda x: len(x), reverse=True)
+        if isinstance(target, dict):
+            return sorted(target.keys(), key=lambda x: len(x), reverse=True)
+        elif isinstance(target, list):
+            return sorted(target, key=lambda x: len(x), reverse=True)
+        else:
+            raise TypeError("Target must be a dictionary or list")
 
     def __set_statistics(self) -> None:
         """

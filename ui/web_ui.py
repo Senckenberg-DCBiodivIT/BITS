@@ -149,7 +149,7 @@ class WebUI:
                                    noun_groups=self.th_np_collection,
                                    annotated_noun_groups=self.bh_request_results,
                                    performed_annotation=self.load_json_loads,
-                                   compact_view=self.config["web_ui"]["compact_view"] == "True")
+                                   compact_view=self.config["web_ui"]["compact_view"])
         except Exception as e:
             logging.error(f"Error in function __show_csv_annotation: {str(e)}")
             return f"Error in function __show_csv_annotation: {str(e)}"
@@ -215,6 +215,7 @@ class WebUI:
         Raises:
             Exception: If annotation processing fails
         """
+        print("\n\n\n\n__annotate_user_text_content\n\n")
         try:
             # Collect sentences from the content
             self.TH_WEBUI.th_cells = content.replace("\n", " ").split(".")
@@ -223,7 +224,7 @@ class WebUI:
 
             logging.debug(f"self.TH_WEBUI.th_cells: {self.TH_WEBUI.th_cells}")
 
-            # Detect NP
+            # Detect NP, result is self.TH_WEBUI.th_np_collection
             self.TH_WEBUI.th_np_recognition()
 
             # Only proceed with annotation if terminologies are selected
@@ -231,11 +232,15 @@ class WebUI:
                 return "Please select at least one terminology before annotation.", str([])
 
             # Annotate NP in a threaded process
-            annotation_done = self.bh_request_explicit_terminologies(
-                self.TH_WEBUI.th_np_collection)
+            query_bits = self.bh_request_explicit_terminologies(
+                self.TH_WEBUI.th_np_collection, self.selected_terminologies)
+
+            print(f"\n\n\nquery_bits: {query_bits}")
 
             # Perform Annotation
-            annotated_content = self.ah_annotate_cell(content)
+            print("Call self.ah_annotate_cell")
+
+            annotated_content = self.ah_annotate_cell(content, query_bits)
             logging.debug(f"annotated_content: {annotated_content}")
 
             # Finish

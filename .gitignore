@@ -1,10 +1,33 @@
+# Specific project files
 __pycache__
 /confidential/
 csv/annotated_*.csv
+
 error.log
 test.json
 cache.json
 statistics.json
+
+# User-specific configuration files
 config_gpt4all.json
 config_gpt4all_local.json
 config_ollama.json
+
+# OS generated files
+**/.DS_Store
+**/Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Log files
+*.log
+logs/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
