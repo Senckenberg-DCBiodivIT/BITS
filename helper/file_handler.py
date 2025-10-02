@@ -73,7 +73,7 @@ class FileHandler:
 
         self.__load_config()
         # TODO: Currently only the input file is loaded. In  later steps we will load the live data.
-        self.__load_csv(self.config["annotation"]["input_file"])
+        self.__load_csv(self.config["data_provider"]["file"])
 
     def __load_csv(self, csv_filename: str) -> None:
         """
@@ -135,13 +135,13 @@ class FileHandler:
         """
         try:
             list_data = pd.DataFrame(list_data).to_csv(
-                self.config["annotation"]["output_file"], index=False)
+                self.config["data_export"]["file"], index=False)
             logging.debug(f"FileHandler, annotation exported to {
-                          self.config['annotation']['output_file']}")
+                          self.config['data_export']['file']}")
 
         except Exception as e:
             error = f"FileHandler, unable to export annotation to {
-                self.config['annotation']['output_file']}: {str(e)}"
+                self.config['data_export']['file']}: {str(e)}"
             logging.critical(error)
             raise Exception(error)
 

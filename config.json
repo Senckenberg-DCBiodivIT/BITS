@@ -1,10 +1,18 @@
 {
     "version": 0.5,
+    "data_provider": {
+        "type": "csv",
+        "file": "confidential/1row.csv",
+        "data_provider_connector": ""
+    },
+    "data_export": {
+        "type": "csv",
+        "file": "csv/annotated_test.csv",
+        "perform_export": "false",
+        "data_provider_connector": ""
+    },
     "annotation": {
-        "input_file": "confidential/1row.csv",
-        "output_file": "csv/annotated_test.csv",
-        "perform_export": "False",
-        "perform_validation": "True",
+        "perform_validation": "False",
         "ts_sources": {
             "explicit_terminologies": "False",
             "collection": "False"

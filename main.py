@@ -211,8 +211,8 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         self.ah_annotate_dataset()
 
         # Export annotation results if configured
-        if self.config["annotation"]["perform_export"]:
-            self.export_csv(self.load_json_loads)
+        if self.config["data_export"]["perform_export"]:
+            self.export_csv(self.load_json_loads) # TODO: Use data_export type here after implementation of the other types
 
         # Perform validation if configured
         if self.config["annotation"]["perform_validation"]:
