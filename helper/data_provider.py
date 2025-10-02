@@ -9,13 +9,17 @@ class DataProvider:
         """
         Initialize the DataProvider.
         """
-        pass
+        self.common_config = {}
+        self.role = ""
 
-    def load_config(self, config: dict):
+    def load_config(self, common_config: dict, config_file: dict, role: str):
         """
         Load the configuration for the data provider.
         """
-        pass
+        self.common_config = common_config
+        self.role = role
+
+        self.common_config["internal_config"][self.role] = {}
 
     def load_data(self):
         """

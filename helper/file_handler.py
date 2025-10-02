@@ -315,12 +315,17 @@ class FileHandler:
         """
         Load the data provider connector.
         """
+        self.config["internal_config"] = {"data_provider_connector":{}, "data_export_connector":{}}
         
         if self.config["data_provider"]["type"] == "data_provider_connector":
-            self.data_provider_source.load_config(self.config["data_provider"]["data_provider_connector"])
+            self.data_provider_source.load_config(self.config,
+                self.config["data_provider"]["data_provider_connector"], 
+                "data_provider")
         
         if self.config["data_export"]["type"] == "data_provider_connector":
-            self.data_provider_target.load_config(self.config["data_export"]["data_provider_connector"])
+            self.data_provider_target.load_config(self.config,
+                self.config ["data_export"]["data_provider_connector"],
+                "data_export")
 
 if __name__ == "__main__":
     print("Start FileHandler instance here")
