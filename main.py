@@ -38,6 +38,7 @@ Classes:
 from helper.file_handler import FileHandler as File
 from helper.cache import Cache as Cache
 from helper.validator import Validator as Validator
+from helper.data_provider import DataProvider as DataProvider
 
 from helper.statistics_helper import StatisticsHelper as SH
 from helper.annotation_helper import AnnotationHelper as AH
@@ -110,10 +111,17 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         4. Initializes WebUI if enabled
         5. Processes JSON data for annotation
         """
+
+         # Declare data providers. Here we use a variable for the source and target data provider.
+        self.data_provider_source = DataProvider()
+        self.data_provider_target = DataProvider()
+
         # Initialize base classes in correct order
         File.__init__(self)
         Cache.__init__(self)
         SH.__init__(self)
+
+       
 
         # Load configuration settings
         self.explicit_terminologies = self.config["annotation"]["ts_sources"]["explicit_terminologies"]
@@ -135,7 +143,7 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
             logging.debug("Web UI is enabled, starting server...")
             WebUI.__init__(self, TH())  # Initialize WebUI before using it
 
-        self.__handle_json_loads()
+        #self.__handle_json_loads() # Disabled during the development of the data provider connector
 
     def __handle_json_loads(self) -> None:
         """

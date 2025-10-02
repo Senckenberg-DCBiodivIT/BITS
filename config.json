@@ -1,7 +1,7 @@
 {
-    "version": 0.5,
+    "version": 0.6,
     "data_provider": {
-        "type": "csv",
+        "type": "data_provider_connector",
         "file": "confidential/1row.csv",
         "data_provider_connector": ""
     },

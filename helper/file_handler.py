@@ -50,7 +50,7 @@ class FileHandler:
         __CONFIG_VERSION (float): Required configuration version (0.4)
     """
 
-    __CONFIG_VERSION: float = 0.5
+    __CONFIG_VERSION: float = 0.6
 
     def __init__(self) -> None:
         """
@@ -72,8 +72,17 @@ class FileHandler:
         self.ai_config = {"ollama": {}, "gpt4all": {}, "gpt4all_local": {}}
 
         self.__load_config()
-        # TODO: Currently only the input file is loaded. In  later steps we will load the live data.
-        self.__load_csv(self.config["data_provider"]["file"])
+
+        # Load data sources
+        if self.config["data_provider"]["type"] == "data_provider_connector" or self.config["data_export"]["type"] == "data_provider_connector":
+            self.__load_data_provider()
+
+        if self.config["data_provider"]["type"] == "csv":
+            self.__load_csv(self.config["data_provider"]["file"])
+        
+        if self.config["data_provider"]["type"] != "data_provider_connector" and self.config["data_provider"]["type"] != "csv":
+            logging.critical(f"FileHandler, data provider type not supported: {self.config['data_provider']['type']}")
+            raise Exception(f"FileHandler, data provider type not supported: {self.config['data_provider']['type']}")
 
     def __load_csv(self, csv_filename: str) -> None:
         """
@@ -301,6 +310,17 @@ class FileHandler:
             logging.critical("This config version is outdated.")
             raise Exception("This config version is outdated.")
 
+# Data Provider Connector
+    def __load_data_provider(self) -> None:
+        """
+        Load the data provider connector.
+        """
+        
+        if self.config["data_provider"]["type"] == "data_provider_connector":
+            self.data_provider_source.load_config(self.config["data_provider"]["data_provider_connector"])
+        
+        if self.config["data_export"]["type"] == "data_provider_connector":
+            self.data_provider_target.load_config(self.config["data_export"]["data_provider_connector"])
 
 if __name__ == "__main__":
     print("Start FileHandler instance here")
