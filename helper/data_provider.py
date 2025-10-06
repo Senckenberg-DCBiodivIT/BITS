@@ -479,6 +479,9 @@ class DataProvider:
         Based on Perplexity recommendations for 19GB files.
         """
         try:
+            # Create database first
+            self._create_postgresql_database()
+            
             # Create temporary directory for chunks in the same directory as the SQL file
             sql_dir = os.path.dirname(self.sql_file_path)
             temp_dir = os.path.join(sql_dir, "temp_chunks")
