@@ -3,7 +3,7 @@
     "data_provider": {
         "type": "data_provider_connector",
         "file": "confidential/1row.csv",
-        "data_provider_connector": ""
+        "data_provider_connector": "data_provider_connector/confidential/sgn_local_connector.json"
     },
     "data_export": {
         "type": "csv",
@@ -37,7 +37,7 @@
         "gpt4all_local": "False"
     },
     "web_ui": {
-        "enabled": "True",
+        "enabled": "false",
         "compact_view": "true",
         "port": 5001,
         "open_browser": "True"

@@ -315,13 +315,15 @@ class FileHandler:
         """
         Load the data provider connector.
         """
-        self.config["internal_config"] = {"data_provider_connector":{}, "data_export_connector":{}}
+        self.config["data_provider_connection"] = {"data_provider":{}, "data_export":{}}
         
+        # Source data provider
         if self.config["data_provider"]["type"] == "data_provider_connector":
-            self.data_provider_source.load_config(self.config,
-                self.config["data_provider"]["data_provider_connector"], 
-                "data_provider")
+            self.data_provider_source.load_config(self.config, # Common config
+                self.config["data_provider"]["data_provider_connector"], # Private provider config file
+                "data_provider") # Role later in the self.config["data_provider_connection"]
         
+        # Target data provider
         if self.config["data_export"]["type"] == "data_provider_connector":
             self.data_provider_target.load_config(self.config,
                 self.config ["data_export"]["data_provider_connector"],
