@@ -1,7 +1,7 @@
 # PostgreSQL Setup for BITS Project
 
 ## Overview
-This project supports both PostgreSQL and SQLite databases. For large PostgreSQL dumps (like the 19GB sesam_dump.sql), PostgreSQL is recommended.
+This project now uses PostgreSQL exclusively for database operations. PostgreSQL provides superior performance and scalability for large datasets like the 19GB sesam_dump.sql file.
 
 ## Installation
 
@@ -11,50 +11,74 @@ sudo apt update
 sudo apt install postgresql postgresql-contrib
 ```
 
-### 2. Start PostgreSQL
+### 2. Start PostgreSQL Service
 ```bash
 sudo systemctl start postgresql
 sudo systemctl enable postgresql
 ```
 
-### 3. Configure PostgreSQL
+### 3. Configure PostgreSQL User
 ```bash
 sudo -u postgres psql
 ```
 
-In PostgreSQL:
+In PostgreSQL console:
 ```sql
 ALTER USER postgres PASSWORD 'postgres';
 \q
 ```
 
-### 4. Check PostgreSQL Status
+### 4. Install Python Dependencies
 ```bash
+pip install psycopg2-binary
+```
+
+### 5. Verify Installation
+```bash
+# Check if PostgreSQL is running
 ps aux | grep postgres
-```
 
-### 5. Start PostgreSQL (if not running)
-```bash
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-```
-
-### 6. Test Installation
-```bash
+# Test connection
 psql -h localhost -U postgres -d postgres
 ```
 
-## Usage in BITS Project
+## Automatic Database Management
 
-### Automatic Detection
-The system automatically detects the database type based on configuration:
+The BITS system automatically handles PostgreSQL database operations:
 
-- **PostgreSQL Dumps** → **PostgreSQL Server** (no local .db file!)
-- **SQLite Dumps** → **SQLite Database** (local .db file)
+### Database Creation
+- **Database Name**: `sesam_dump`
+- **Auto-creation**: Created automatically when importing SQL files
+- **Auto-cleanup**: Recreated if import fails
 
-### Configuration
-Configuration is done in `data_provider_connector/confidential/sgn_local_connector.json`:
+### SQL File Import
+The system automatically detects file size and chooses the appropriate import method:
 
+#### Small Files (<5GB)
+- Direct import using `psql` command
+- Fast processing with minimal overhead
+
+#### Large Files (>5GB)
+- **Chunked Import**: Files split into 2GB chunks
+- **Sequential Processing**: Chunks imported one by one
+- **Progress Monitoring**: Real-time logging
+- **Error Recovery**: Continues processing even if individual chunks fail
+
+## Configuration
+
+### Database Connection Parameters
+The system uses these default connection parameters:
+```python
+{
+    'host': 'localhost',
+    'database': 'sesam_dump',
+    'user': 'postgres',
+    'password': 'postgres'
+}
+```
+
+### Connector Configuration
+Update your connector file (`data_provider_connector/confidential/sgn_local_connector.json`):
 ```json
 {
     "type": "PostgreSQL",
@@ -63,129 +87,154 @@ Configuration is done in `data_provider_connector/confidential/sgn_local_connect
 }
 ```
 
-### System Behavior
+## Usage in BITS Project
 
-#### With PostgreSQL (recommended for large files):
-1. **Check PostgreSQL Server Availability** → Helpful setup instructions on errors
-2. **Check Database Existence** → Direct connection if `sesam_dump` exists
-3. **Check File Size** → Chunked import for large files (≥5GB)
-4. **Perform Import** → `psql` with RAM-optimized chunking
-5. **Establish Connection** → PostgreSQL Server (no local .db file!)
+### Automatic Detection
+The system automatically:
+1. Detects PostgreSQL server availability
+2. Checks if `sesam_dump` database exists
+3. Imports SQL file if database doesn't exist
+4. Connects to existing database if available
 
-#### Important Note:
-- **PostgreSQL data is stored in the PostgreSQL Server**
-- **No local .db file** is created
-- **Data is available in the PostgreSQL Server** (e.g., 92 tables)
-- **Much more performant** for large datasets (19GB)
+### First Run Process
+When running BITS for the first time with a PostgreSQL dump:
+1. **Server Check**: Verifies PostgreSQL server is running
+2. **Database Check**: Checks if `sesam_dump` database exists
+3. **File Import**: Imports SQL file (chunked for large files)
+4. **Connection**: Establishes connection to imported database
 
-## Testing the System
+## Performance Considerations
 
-### 1. Check PostgreSQL Status
-```bash
-ps aux | grep postgres
-```
+### Memory Usage
+- **Chunked Processing**: Large files processed in 2GB chunks
+- **Streaming Operations**: No RAM overflow for any file size
+- **Batch Operations**: Data operations optimized for large datasets
 
-### 2. Start PostgreSQL (if needed)
-```bash
-sudo systemctl start postgresql
-```
-
-### 3. Test System
-```bash
-cd /home/alex/Schreibtisch/Projects/BITS
-python3 -c "
-from helper.data_provider import DataProvider
-import logging
-logging.basicConfig(level=logging.INFO)
-
-data_provider = DataProvider()
-data_provider.load_config(
-    common_config={'data_provider_connection': {'sgn_local': {}}},
-    config_file='data_provider_connector/confidential/sgn_local_connector.json',
-    role='sgn_local'
-)
-
-try:
-    data_provider.connect()
-    print('✓ Database connection successful!')
-    print(f'Database type: {data_provider.db_type}')
-    
-    # Test query
-    if data_provider.db_type == 'postgresql':
-        data_provider.cursor.execute('SELECT tablename FROM pg_tables LIMIT 5')
-        tables = data_provider.cursor.fetchall()
-        print(f'Found {len(tables)} tables: {[t[0] for t in tables]}')
-    else:
-        data_provider.cursor.execute('SELECT name FROM sqlite_master WHERE type=\"table\" LIMIT 5')
-        tables = data_provider.cursor.fetchall()
-        print(f'Found {len(tables)} tables: {[t[0] for t in tables]}')
-        
-except Exception as e:
-    print(f'✗ Connection failed: {e}')
-finally:
-    if data_provider.connection:
-        data_provider.close_connection()
-"
-```
-
-## Benefits of PostgreSQL Installation
-
-### For Large Files (19GB+):
-- ✅ **Chunked Import** with `split -b 2G` for RAM-optimized processing
-- ✅ **PostgreSQL Server** instead of local files (more performant)
-- ✅ **Automatic Database Detection** (92 tables already present)
-- ✅ **SSD-friendly Processing** (chunks in same directory)
-- ✅ **Direct PostgreSQL Processing** without conversion
-
-### For Small Files (<5GB):
-- ✅ **Direct Import** with `psql` without chunking
-- ✅ **Flexible Configuration** depending on file type
-- ✅ **Intelligent Detection** of database type
-
-### Important Differences:
-- **PostgreSQL:** Data in server (no .db file visible)
-- **SQLite:** Local .db file in filesystem
+### Storage Requirements
+- **Database Size**: Expect ~2-3x the SQL file size
+- **Temporary Files**: Chunked imports use temporary directories
+- **Auto-cleanup**: Temporary files automatically removed
 
 ## Troubleshooting
 
-### PostgreSQL Connection Failed:
+### PostgreSQL Server Issues
+
+#### Server Not Running
 ```bash
+sudo systemctl start postgresql
 sudo systemctl status postgresql
-psql -h localhost -U postgres -d postgres
-sudo journalctl -u postgresql
 ```
 
-### SQLite Fallback:
-- System automatically uses SQLite conversion
-- PostgreSQL-specific commands are filtered
-- Works even without PostgreSQL installation
-
-## Files in Project
-
-- `helper/data_provider.py` - Main logic for database connections
-- `data_provider_connector/confidential/sgn_local_connector.json` - Configuration
-- `confidential/DB/sesam_dump/sesam_dump.sql` - PostgreSQL dump (19GB)
-- `POSTGRESQL_SETUP.md` - This guide
-
-## Important Notes
-
-### No .db File Visible?
-**That's correct!** PostgreSQL stores data in the server, not as a local file.
-
-### Check Database:
+#### Permission Issues
 ```bash
-# Connect to PostgreSQL database
-psql -U postgres -d sesam_dump
+# Reset postgres user password
+sudo -u postgres psql
+ALTER USER postgres PASSWORD 'postgres';
+\q
+```
 
-# Show tables
+#### Connection Refused
+```bash
+# Check if PostgreSQL is listening
+sudo netstat -tlnp | grep 5432
+
+# Restart PostgreSQL
+sudo systemctl restart postgresql
+```
+
+### Import Issues
+
+#### Large File Import Failures
+- **Disk Space**: Ensure sufficient disk space (3x SQL file size)
+- **Memory**: PostgreSQL will use available system memory
+- **Permissions**: Ensure read access to SQL file
+
+#### Chunk Import Errors
+- **Partial Success**: System continues with remaining chunks
+- **Log Review**: Check logs for specific chunk errors
+- **Retry**: Delete database and retry import
+
+### Database Management
+
+#### Reset Database
+```python
+# Using the reset script
+python tools/reset_postgresql_db.py
+```
+
+#### Manual Database Operations
+```bash
+# Connect to database
+psql -h localhost -U postgres -d sesam_dump
+
+# List tables
 \dt
 
-# Check table count
-SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';
+# Check database size
+SELECT pg_size_pretty(pg_database_size('sesam_dump'));
+
+# Drop and recreate database
+DROP DATABASE sesam_dump;
+CREATE DATABASE sesam_dump;
 ```
 
-### System Status:
-- ✅ **PostgreSQL Server running**
-- ✅ **Database `sesam_dump` exists** (92 tables)
-- ✅ **No local .db file** = **Correct!**
-- ✅ **Data is available in PostgreSQL Server**
+## Monitoring and Maintenance
+
+### Performance Monitoring
+```sql
+-- Check active connections
+SELECT count(*) FROM pg_stat_activity WHERE datname = 'sesam_dump';
+
+-- Check database size
+SELECT pg_size_pretty(pg_database_size('sesam_dump'));
+
+-- Check table sizes
+SELECT 
+    schemaname,
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+FROM pg_tables 
+WHERE schemaname = 'public' 
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+```
+
+### Regular Maintenance
+- **Backup Strategy**: Regular database backups recommended
+- **Vacuum Operations**: PostgreSQL handles automatically
+- **Index Maintenance**: Consider adding indexes for frequently queried columns
+
+## Security Considerations
+
+### Production Deployment
+For production environments:
+1. **Change Default Password**: Use strong passwords
+2. **Network Security**: Restrict PostgreSQL access
+3. **User Permissions**: Create dedicated database users
+4. **SSL/TLS**: Enable encrypted connections
+
+### Development Environment
+Current setup is optimized for development:
+- **Local Access Only**: PostgreSQL bound to localhost
+- **Simple Authentication**: Password-based authentication
+- **Default Credentials**: `postgres/postgres` for easy setup
+
+## Migration from SQLite
+
+If migrating from previous SQLite setup:
+1. **Data Export**: Export data from SQLite if needed
+2. **Configuration Update**: Update connector configuration
+3. **Dependency Installation**: Install `psycopg2-binary`
+4. **Server Setup**: Follow PostgreSQL installation steps
+
+## Support and Documentation
+
+### Additional Resources
+- **PostgreSQL Documentation**: https://www.postgresql.org/docs/
+- **psycopg2 Documentation**: https://www.psycopg.org/docs/
+- **System Logs**: Check application logs for detailed error information
+
+### Getting Help
+1. Check system logs for error messages
+2. Verify PostgreSQL server status
+3. Test database connectivity manually
+4. Review configuration files

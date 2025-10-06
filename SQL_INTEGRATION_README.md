@@ -1,26 +1,28 @@
-# SQL Integration for BITS
+# PostgreSQL Integration for BITS
 
 ## Overview
 
-The SQL integration allows accessing and querying SQL databases through the `data_provider_connector` in `config.json`. The system supports both SQLite and PostgreSQL databases.
+The PostgreSQL integration allows accessing and querying PostgreSQL databases through the `data_provider_connector` in `config.json`. The system is now optimized for PostgreSQL-only operation, providing better performance and maintainability for large datasets.
 
 ## Implemented Functions
 
 ### DataProvider Class (`helper/data_provider.py`)
 
-The extended `DataProvider` class offers the following functions:
+The streamlined `DataProvider` class offers the following functions:
 
-- **Database Connection**: SQLite and PostgreSQL
-- **SQL Queries**: Execution of SQL statements
-- **Memory-safe Processing**: Large SQL files are processed in batches
+- **PostgreSQL Connection**: Direct connection to PostgreSQL server
+- **SQL Dump Import**: Automatic import of PostgreSQL dump files
+- **Large File Handling**: Chunked processing for files >5GB
+- **Memory-safe Processing**: Optimized for large datasets without RAM overflow
 - **Table Information**: Retrieving metadata about database structures
-- **Data Import/Export**: Loading and saving data
+- **Data Import/Export**: Loading and saving data with batch operations
 
 ### Main Methods
 
 ```python
-# Database connection
-provider.connect_to_database("sqlite")  # or "postgresql"
+# Load configuration and connect
+provider.load_config(common_config, config_file, role)
+provider.connect()
 
 # Execute SQL queries
 results = provider.execute_query("SELECT * FROM table_name")
@@ -33,9 +35,6 @@ provider.save_data(data, "table_name")
 
 # Table information
 tables = provider.get_table_info()
-
-# Process large SQL files
-provider.process_large_sql_file("large_dump.sql")
 ```
 
 ## Configuration
@@ -46,7 +45,7 @@ provider.process_large_sql_file("large_dump.sql")
 {
     "data_provider": {
         "type": "data_provider_connector",
-        "data_provider_connector": "confidential/sgn_local_connector.json"
+        "data_provider_connector": "data_provider_connector/confidential/sgn_local_connector.json"
     }
 }
 ```
@@ -55,32 +54,44 @@ provider.process_large_sql_file("large_dump.sql")
 
 ```json
 {
+    "type": "PostgreSQL",
+    "source_type": "file",
     "sql_filename": "confidential/DB/sesam_dump/sesam_dump.sql"
 }
 ```
 
-## Supported Databases
+## PostgreSQL Requirements
 
-### SQLite
-- Local SQLite databases
-- Automatic detection of large files (>100MB)
-- Memory-safe processing
+### Dependencies
+- **psycopg2-binary**: `pip install psycopg2-binary`
+- **PostgreSQL Server**: Running locally on port 5432
+- **Database**: `sesam_dump` (automatically created)
 
-### PostgreSQL
-- Requires `psycopg2-binary`: `pip install psycopg2-binary`
-- Connection parameters via `connection_params`
+### Server Setup
+The system requires a local PostgreSQL server with:
+- Host: `localhost`
+- Port: `5432` (default)
+- User: `postgres`
+- Password: `postgres`
+- Database: `sesam_dump` (auto-created)
 
-## Large SQL Files
+## Large SQL File Processing
 
-The system can handle very large SQL files (like the 19.4GB PostgreSQL dump):
+The system automatically handles different file sizes:
 
-- **Batch Processing**: Files are processed in small chunks
-- **Memory-safe Operations**: Prevents RAM overflow
-- **Progress Logging**: Shows processing progress
+### Small Files (<5GB)
+- Direct import using `psql` command
+- Fast processing with minimal overhead
 
-## Usage
+### Large Files (>5GB)
+- **Chunked Processing**: Files split into 2GB chunks
+- **Sequential Import**: Chunks imported one by one
+- **Progress Monitoring**: Real-time logging of import progress
+- **Memory Safety**: No RAM overflow issues
 
-### Example: SQLite Database
+## Usage Examples
+
+### Basic Usage
 
 ```python
 from helper.data_provider import DataProvider
@@ -89,32 +100,36 @@ from helper.data_provider import DataProvider
 provider = DataProvider()
 
 # Load configuration
-config = {"sql_filename": "database.db"}
-provider.load_config({}, config, "data_provider")
+provider.load_config(common_config, config_file, "data_provider")
 
-# Establish connection
-provider.connect_to_database("sqlite")
+# Establish connection (automatically imports SQL file if needed)
+provider.connect()
 
 # Query data
 results = provider.execute_query("SELECT * FROM objects LIMIT 10")
+
+# Get table information
+tables = provider.get_table_info()
 
 # Close connection
 provider.close_connection()
 ```
 
-### Example: PostgreSQL Database
+### Advanced Usage
 
 ```python
-# PostgreSQL connection parameters
-connection_params = {
-    "host": "localhost",
-    "database": "sesam_db",
-    "user": "postgres",
-    "password": "password"
-}
+# Load data from specific table with limit
+data = provider.load_data(table_name="specimens", limit=1000)
 
-# Establish connection
-provider.connect_to_database("postgresql", connection_params)
+# Execute custom query
+results = provider.execute_query(
+    "SELECT * FROM objects WHERE collection_id = %s", 
+    (123,)
+)
+
+# Save new data
+new_data = [{"name": "sample", "type": "specimen"}]
+provider.save_data(new_data, "objects")
 ```
 
 ## Current SQL File
@@ -125,24 +140,61 @@ The existing SQL file (`confidential/DB/sesam_dump/sesam_dump.sql`):
 - **Tables**: 68+ tables
 - **Structure**: Senckenberg database with objects, persons, locations, etc.
 
-## Important Notes
+## Error Handling
 
-1. **Memory Management**: Large SQL files are automatically processed in batches
-2. **PostgreSQL Dependency**: `psycopg2-binary` is required for PostgreSQL connections
-3. **Error Handling**: Robust error handling with detailed logging
-4. **Performance**: Optimized for large datasets without memory overflow
+### PostgreSQL Server Not Available
+If PostgreSQL server is not running, the system displays helpful setup instructions:
+- Installation commands
+- Service start commands
+- User configuration steps
+- Link to detailed setup guide
+
+### Import Failures
+- Automatic retry mechanisms for chunked imports
+- Detailed error logging
+- Graceful fallback handling
+
+## Performance Optimizations
+
+1. **Chunked Processing**: Large files processed in 2GB chunks
+2. **Batch Operations**: Data saved in batches for efficiency
+3. **Connection Pooling**: Reuses database connections
+4. **Memory Management**: Streaming operations prevent RAM overflow
+5. **Progress Monitoring**: Real-time feedback for long operations
 
 ## Integration in file_handler.py
 
-The `FileHandler` has been extended to correctly initialize DataProvider instances:
+The `FileHandler` automatically initializes DataProvider instances:
+- Detects `data_provider_connector` configuration
+- Loads connector configuration files
+- Initializes source and target DataProvider instances
 
-- Automatic detection of `data_provider_connector`
-- Loading configuration files
-- Initialization of DataProvider instances
+## Troubleshooting
+
+### Common Issues
+
+1. **PostgreSQL Server Not Running**
+   ```bash
+   sudo systemctl start postgresql
+   ```
+
+2. **Permission Denied**
+   ```bash
+   sudo -u postgres psql
+   ALTER USER postgres PASSWORD 'postgres';
+   ```
+
+3. **Import Failures**
+   - Check file permissions
+   - Verify PostgreSQL server status
+   - Review error logs for specific issues
+
+### Debug Mode
+Enable detailed logging by setting log level to DEBUG in your application.
 
 ## Next Steps
 
-1. **PostgreSQL Setup**: Setting up a PostgreSQL database for importing the SQL file
-2. **Database Import**: Importing the 19.4GB SQL file into PostgreSQL
-3. **Query Interface**: Developing specific queries for Senckenberg data
-4. **Performance Optimization**: Indexing and optimization for large datasets
+1. **Performance Monitoring**: Track import times and query performance
+2. **Query Optimization**: Develop optimized queries for Senckenberg data
+3. **Indexing Strategy**: Create appropriate indexes for large datasets
+4. **Backup Strategy**: Implement regular database backups
