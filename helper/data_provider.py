@@ -36,6 +36,7 @@ class DataProvider:
         self.cursor = None
         self.db_type = "postgresql"
         self.sql_file_path = None
+        self.database_name = None
         self.postgresql_import_completed = False
 
     ########################################
@@ -76,6 +77,11 @@ class DataProvider:
                 logging.error(error_msg)
                 print(f"ERROR: {error_msg}")
                 sys.exit(1)
+
+            # Derive database name from SQL filename (without extension)
+            sql_filename = os.path.basename(self.sql_file_path)
+            self.database_name = os.path.splitext(sql_filename)[0]
+            logging.debug(f"DataProvider, database name derived from SQL file: {self.database_name}")
 
             # Connect to the SQL file
             self.connect_to_sql_file()
@@ -127,13 +133,10 @@ class DataProvider:
         # Database doesn't exist - import SQL file
         logging.info("PostgreSQL database not found, importing SQL file...")
         file_size_mb = os.path.getsize(self.sql_file_path) / (1024 * 1024)
+        logging.info(f"File size: {file_size_mb:.1f}MB, using optimized import")
         
-        if file_size_mb > 5000:  # Files larger than 5GB
-            logging.info(f"Large file detected ({file_size_mb:.1f}MB), using chunked import")
-            self._split_and_import_large_file()
-        else:
-            logging.info(f"Small file detected ({file_size_mb:.1f}MB), using direct import")
-            self._import_small_sql_file()
+        # Use optimized import for all file sizes
+        self._import_sql_file()
 
     def execute_query(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
         """
@@ -360,7 +363,7 @@ class DataProvider:
             # Try to connect to the database
             conn_params = {
                 'host': 'localhost',
-                'database': 'sesam_dump',
+                'database': self.database_name,
                 'user': 'postgres',
                 'password': 'postgres'
             }
@@ -389,7 +392,7 @@ class DataProvider:
         try:
             conn_params = {
                 'host': 'localhost',
-                'database': 'sesam_dump',
+                'database': self.database_name,
                 'user': 'postgres',
                 'password': 'postgres'
             }
@@ -403,22 +406,23 @@ class DataProvider:
             logging.error(f"Failed to connect to existing PostgreSQL database: {str(e)}")
             raise
 
-    def _import_small_sql_file(self):
+    def _import_sql_file(self):
         """
-        Import small SQL file directly into PostgreSQL.
+        Import SQL file into PostgreSQL with optimized settings.
         """
         try:
             # Create database
             self._create_postgresql_database()
             
-            # Import SQL file
+            # Import SQL file with role checking and optimized settings
             self._import_sql_file_to_postgresql()
             
             # Connect to imported database
             self._connect_to_existing_postgresql()
+            self.postgresql_import_completed = True
             
         except Exception as e:
-            logging.error(f"Failed to import small SQL file: {str(e)}")
+            logging.error(f"Failed to import SQL file: {str(e)}")
             raise
 
     def _create_postgresql_database(self):
@@ -439,130 +443,86 @@ class DataProvider:
             cursor = conn.cursor()
             
             # Drop and create database
-            cursor.execute("DROP DATABASE IF EXISTS sesam_dump")
-            cursor.execute("CREATE DATABASE sesam_dump")
+            cursor.execute(f"DROP DATABASE IF EXISTS {self.database_name}")
+            cursor.execute(f"CREATE DATABASE {self.database_name}")
             
             cursor.close()
             conn.close()
             
-            logging.info("PostgreSQL database 'sesam_dump' created successfully")
+            logging.info(f"PostgreSQL database '{self.database_name}' created successfully")
             
         except Exception as e:
             logging.error(f"Failed to create PostgreSQL database: {str(e)}")
             raise
 
-    def _import_sql_file_to_postgresql(self):
+    def _check_and_create_required_roles(self):
         """
-        Import SQL file into PostgreSQL database.
+        Check if required roles exist and create them if missing.
         """
         try:
-            # Import SQL file with psql
+            # Connect to the database to check/create roles
+            conn_params = {
+                'host': 'localhost',
+                'database': self.database_name,
+                'user': 'postgres',
+                'password': 'postgres'
+            }
+            
+            conn = psycopg2.connect(**conn_params)
+            conn.autocommit = True
+            cursor = conn.cursor()
+            
+            # Check if admin role exists
+            cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = 'admin'")
+            admin_exists = cursor.fetchone()
+            
+            if not admin_exists:
+                logging.info("Creating missing 'admin' role...")
+                cursor.execute("CREATE ROLE admin WITH LOGIN PASSWORD 'postgres'")
+                logging.info("Admin role created successfully")
+            else:
+                logging.info("Admin role already exists")
+            
+            cursor.close()
+            conn.close()
+            
+        except Exception as e:
+            logging.warning(f"Could not check/create roles: {str(e)}")
+            # Continue with import even if role creation fails
+
+    def _import_sql_file_to_postgresql(self):
+        """
+        Import SQL file into PostgreSQL database with optimized settings.
+        """
+        try:
+            # Check and create required roles first
+            self._check_and_create_required_roles()
+            
+            # Import SQL file with optimized psql settings
             env = os.environ.copy()
             env['PGPASSWORD'] = 'postgres'
-            psql_cmd = f"psql -h localhost -U postgres -d sesam_dump -f {self.sql_file_path}"
+            psql_cmd = [
+                'psql',
+                '-h', 'localhost',
+                '-p', '5432',
+                '-U', 'postgres',
+                '-d', self.database_name,
+                '--set', 'ON_ERROR_STOP=on',
+                '--single-transaction',
+                '-f', self.sql_file_path
+            ]
             
-            logging.info(f"Importing SQL file: {self.sql_file_path}")
-            result = subprocess.run(psql_cmd, shell=True, capture_output=True, text=True, env=env)
+            logging.info(f"Importing SQL file with optimized settings: {self.sql_file_path}")
+            result = subprocess.run(psql_cmd, capture_output=True, text=True, env=env)
             
             if result.returncode != 0:
+                logging.error(f"SQL import failed with return code {result.returncode}")
+                logging.error(f"STDERR: {result.stderr}")
+                logging.error(f"STDOUT: {result.stdout}")
                 raise Exception(f"SQL import failed: {result.stderr}")
             
             logging.info("SQL file imported successfully")
             
         except Exception as e:
             logging.error(f"Failed to import SQL file: {str(e)}")
-            raise
-
-    def _split_and_import_large_file(self):
-        """
-        Split large SQL file into chunks and import them sequentially.
-        Based on Perplexity recommendations for 19GB files.
-        """
-        try:
-            # Create database first
-            self._create_postgresql_database()
-            
-            # Create temporary directory for chunks in the same directory as the SQL file
-            sql_dir = os.path.dirname(self.sql_file_path)
-            temp_dir = os.path.join(sql_dir, "temp_chunks")
-            os.makedirs(temp_dir, exist_ok=True)
-            logging.info(f"Created temporary directory: {temp_dir}")
-            
-            # Split file into 2GB chunks
-            chunk_size = "2G"
-            split_cmd = f"split -b {chunk_size} {self.sql_file_path} {temp_dir}/chunk_"
-            logging.info(f"Splitting file with command: {split_cmd}")
-            
-            result = subprocess.run(split_cmd, shell=True, capture_output=True, text=True)
-            if result.returncode != 0:
-                raise Exception(f"File splitting failed: {result.stderr}")
-            
-            # Get list of chunk files
-            chunk_files = sorted([f for f in os.listdir(temp_dir) if f.startswith("chunk_")])
-            logging.info(f"Created {len(chunk_files)} chunks")
-            
-            # Import chunks sequentially
-            for i, chunk_file in enumerate(chunk_files):
-                chunk_path = os.path.join(temp_dir, chunk_file)
-                logging.info(f"Importing chunk {i+1}/{len(chunk_files)}: {chunk_file}")
-                
-                # Import chunk with psql (set password via environment variable)
-                env = os.environ.copy()
-                env['PGPASSWORD'] = 'postgres'
-                psql_cmd = f"psql -h localhost -U postgres -d sesam_dump -f {chunk_path}"
-                result = subprocess.run(psql_cmd, shell=True, capture_output=True, text=True, env=env)
-                
-                if result.returncode != 0:
-                    logging.warning(f"Chunk {chunk_file} had errors: {result.stderr}")
-                else:
-                    logging.info(f"Successfully imported chunk {chunk_file}")
-                    
-                # DEBUG: Check if data actually exists in PostgreSQL
-                try:
-                    debug_conn = psycopg2.connect(
-                        host='localhost',
-                        database='sesam_dump',
-                        user='postgres',
-                        password='postgres'
-                    )
-                    debug_cursor = debug_conn.cursor()
-                    debug_cursor.execute("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'")
-                    table_count = debug_cursor.fetchone()[0]
-                    logging.info(f"DEBUG: PostgreSQL has {table_count} tables after chunk {chunk_file}")
-                    debug_conn.close()
-                except Exception as e:
-                    logging.warning(f"DEBUG: Could not check PostgreSQL after chunk {chunk_file}: {e}")
-            
-            # Clean up temporary directory
-            shutil.rmtree(temp_dir)
-            logging.info("File splitting and import completed successfully")
-            
-            # Connect to the imported database
-            self._connect_to_imported_postgresql()
-            self.postgresql_import_completed = True
-            
-        except Exception as e:
-            logging.error(f"File splitting approach failed: {str(e)}")
-            # No fallback - PostgreSQL is required for large files
-            raise Exception(f"PostgreSQL import failed: {str(e)}")
-
-    def _connect_to_imported_postgresql(self):
-        """
-        Connect to the PostgreSQL database after successful import.
-        """
-        try:
-            conn_params = {
-                'host': 'localhost',
-                'database': 'sesam_dump',
-                'user': 'postgres',
-                'password': 'postgres'
-            }
-            
-            self.connection = psycopg2.connect(**conn_params)
-            self.cursor = self.connection.cursor()
-            
-            logging.info("Successfully connected to imported PostgreSQL database")
-            
-        except Exception as e:
-            logging.error(f"Failed to connect to imported database: {str(e)}")
             raise
