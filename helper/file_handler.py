@@ -50,7 +50,7 @@ class FileHandler:
         __CONFIG_VERSION (float): Required configuration version (0.4)
     """
 
-    __CONFIG_VERSION: float = 0.5
+    __CONFIG_VERSION: float = 0.7
 
     def __init__(self) -> None:
         """
@@ -72,8 +72,17 @@ class FileHandler:
         self.ai_config = {"ollama": {}, "gpt4all": {}, "gpt4all_local": {}}
 
         self.__load_config()
-        # TODO: Currently only the input file is loaded. In  later steps we will load the live data.
-        self.__load_csv(self.config["annotation"]["input_file"])
+
+        # Load data sources
+        if self.config["data_provider"]["type"] == "data_provider_connector" or self.config["data_export"]["type"] == "data_provider_connector":
+            self.__load_data_provider()
+
+        if self.config["data_provider"]["type"] == "csv":
+            self.__load_csv(self.config["data_provider"]["file"])
+        
+        if self.config["data_provider"]["type"] != "data_provider_connector" and self.config["data_provider"]["type"] != "csv":
+            logging.critical(f"FileHandler, data provider type not supported: {self.config['data_provider']['type']}")
+            raise Exception(f"FileHandler, data provider type not supported: {self.config['data_provider']['type']}")
 
     def __load_csv(self, csv_filename: str) -> None:
         """
@@ -114,7 +123,7 @@ class FileHandler:
             logging.critical(error)
             raise Exception(error)
 
-    def export_csv(self, list_data: List[Dict[str, Any]]) -> None:
+    def export_csv(self, list_data: List[Dict[str, Any]], original_data: List[Dict[str, Any]] = None) -> None:
         """
         Export data to a CSV file.
         
@@ -133,17 +142,35 @@ class FileHandler:
             >>> data = [{"name": "John", "age": 30}, {"name": "Jane", "age": 25}]
             >>> handler.export_csv(data)
         """
-        try:
-            list_data = pd.DataFrame(list_data).to_csv(
-                self.config["annotation"]["output_file"], index=False)
-            logging.debug(f"FileHandler, annotation exported to {
-                          self.config['annotation']['output_file']}")
+        # Case CSV to CSV
+        if self.config["data_provider"]["type"] == "csv":
+            try:
+                pd.DataFrame(list_data).to_csv(
+                    self.config["data_export"]["file"], index=False)
+                logging.debug(f"FileHandler, annotation exported to {
+                            self.config['data_export']['file']}")
 
-        except Exception as e:
-            error = f"FileHandler, unable to export annotation to {
-                self.config['annotation']['output_file']}: {str(e)}"
-            logging.critical(error)
-            raise Exception(error)
+            except Exception as e:
+                error = f"FileHandler, unable to export annotation to {
+                    self.config['data_export']['file']}: {str(e)}"
+                logging.critical(error)
+                raise Exception(error)
+
+        # Case Data Provider Connector to CSV
+        elif self.config["data_provider"]["type"] == "data_provider_connector":
+            try:
+                pd.DataFrame({
+                    'original': original_data,
+                    'annotated': list_data
+                }).to_csv(self.config["data_export"]["file"], index=False)
+                logging.debug(f"FileHandler, annotation exported to {
+                            self.config['data_export']['file']}")
+
+            except Exception as e:
+                error = f"FileHandler, unable to export annotation to {
+                    self.config['data_export']['file']}: {str(e)}"
+                logging.critical(error)
+                raise Exception(error)
 
     def __load_live_data(self) -> None:
         """
@@ -301,6 +328,26 @@ class FileHandler:
             logging.critical("This config version is outdated.")
             raise Exception("This config version is outdated.")
 
+# Data Provider Connector
+    def __load_data_provider(self) -> None:
+        """
+        Load the data provider connector.
+        """
+        self.config["data_provider_connection"] = {"data_provider":{}, "data_export":{}}
+        
+        # Source data provider
+        """
+        if self.config["data_provider"]["type"] == "data_provider_connector":
+            self.data_provider_source.load_config(self.config, # Common config
+                self.config["data_provider"]["data_provider_connector"], # Private provider config file
+                "data_provider") # Role later in the self.config["data_provider_connection"]
+        """
+
+        # Target data provider TOTO: Update this to use the new data provider connector in the main.py
+        if self.config["data_export"]["type"] == "data_provider_connector":
+            self.data_provider_target.load_config(self.config,
+                self.config ["data_export"]["data_provider_connector"],
+                "data_export")
 
 if __name__ == "__main__":
     print("Start FileHandler instance here")

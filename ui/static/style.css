@@ -324,4 +324,39 @@ button:hover {
 
 .none-btn:hover {
     background-color: #d32f2f;
+}
+
+/* Loading indicator styles */
+.loading-container {
+    text-align: center;
+    padding: 2rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin: 2rem 0;
+    border: 1px solid #dee2e6;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 1rem auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-container h3 {
+    color: #007bff;
+    margin-bottom: 0.5rem;
+}
+
+.loading-container p {
+    color: #6c757d;
+    margin: 0.5rem 0;
 } 

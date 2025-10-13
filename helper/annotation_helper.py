@@ -84,21 +84,6 @@ class AnnotationHelper:
             "original_label": single_result["label"],
             "similarity": similarity
         }
-        
-        # Only create mids object if mids_terms is enabled
-        if self.mids_terms["enabled"]:
-            result["mids"] = {}
-            result["mids"]["identifier"] = self.mids_terms["identifier"]
-            result["mids"]["label"] = self.mids_terms["label"]
-            result["mids"]["description"] = self.mids_terms["description"]
-            result["mids"]["creator"] = self.mids_terms["creator"]
-            result["mids"]["digital_representation_type"] = self.mids_terms["digital_representation_type"]
-            result["mids"]["provenance"] = self.mids_terms["provenance"]
-
-            if self.mids_terms["creation_date"] != "default":
-                result["mids"]["creation_date"] = self.mids_terms["creation_date"]
-            else:
-                result["mids"]["creation_date"] = datetime.now().strftime("%Y-%m-%d")
 
         return result
 
@@ -127,11 +112,21 @@ class AnnotationHelper:
 
         # logging.debug(f"AnnotationHelper, sorted_keys: {sorted_keys}")
 
-        for item in range(len(self.load_json_loads)):  # Rows
-            for field in self.relevant_fields:
-                if field in self.load_json_loads[item].keys():
-                    self.load_json_loads[item][field] = self.ah_annotate_cell(
-                        self.load_json_loads[item][field], sorted_keys)
+        if self.data_provider_source_type == "csv":
+            for item in range(len(self.load_json_loads)):  # Rows
+                for field in self.relevant_fields:
+                    if field in self.load_json_loads[item].keys():
+                        self.load_json_loads[item][field] = self.ah_annotate_cell(
+                            self.load_json_loads[item][field], sorted_keys)
+
+        elif self.data_provider_source_type == "data_provider_connector":
+            for i in range(len(self.load_json_loads)):
+                self.load_json_loads[i] = self.ah_annotate_cell(self.load_json_loads[i], sorted_keys)
+                
+        else:
+            error_msg = f"Data provider type not supported: {self.data_provider_source_type}"
+            logging.warning(f"AnnotationHelper, {error_msg}")
+            raise Exception(f"AnnotationHelper, {error_msg}")
 
         self.__set_statistics()
 
