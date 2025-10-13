@@ -123,7 +123,7 @@ class FileHandler:
             logging.critical(error)
             raise Exception(error)
 
-    def export_csv(self, list_data: List[Dict[str, Any]]) -> None:
+    def export_csv(self, list_data: List[Dict[str, Any]], original_data: List[Dict[str, Any]] = None) -> None:
         """
         Export data to a CSV file.
         
@@ -142,17 +142,35 @@ class FileHandler:
             >>> data = [{"name": "John", "age": 30}, {"name": "Jane", "age": 25}]
             >>> handler.export_csv(data)
         """
-        try:
-            list_data = pd.DataFrame(list_data).to_csv(
-                self.config["data_export"]["file"], index=False)
-            logging.debug(f"FileHandler, annotation exported to {
-                          self.config['data_export']['file']}")
+        # Case CSV to CSV
+        if self.config["data_provider"]["type"] == "csv":
+            try:
+                pd.DataFrame(list_data).to_csv(
+                    self.config["data_export"]["file"], index=False)
+                logging.debug(f"FileHandler, annotation exported to {
+                            self.config['data_export']['file']}")
 
-        except Exception as e:
-            error = f"FileHandler, unable to export annotation to {
-                self.config['data_export']['file']}: {str(e)}"
-            logging.critical(error)
-            raise Exception(error)
+            except Exception as e:
+                error = f"FileHandler, unable to export annotation to {
+                    self.config['data_export']['file']}: {str(e)}"
+                logging.critical(error)
+                raise Exception(error)
+
+        # Case Data Provider Connector to CSV
+        elif self.config["data_provider"]["type"] == "data_provider_connector":
+            try:
+                pd.DataFrame({
+                    'original': original_data,
+                    'annotated': list_data
+                }).to_csv(self.config["data_export"]["file"], index=False)
+                logging.debug(f"FileHandler, annotation exported to {
+                            self.config['data_export']['file']}")
+
+            except Exception as e:
+                error = f"FileHandler, unable to export annotation to {
+                    self.config['data_export']['file']}: {str(e)}"
+                logging.critical(error)
+                raise Exception(error)
 
     def __load_live_data(self) -> None:
         """

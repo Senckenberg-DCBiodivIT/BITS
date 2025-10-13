@@ -135,7 +135,7 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         # Declare data providers. Here we use an object for the source and target data provider.
         self.data_provider_source = DataProvider()
         self.data_provider_source_type = self.config["data_provider"]["type"]
-        
+
         self.data_provider_target = DataProvider()
         self.data_provider_target_type = self.config["data_export"]["type"]
 
@@ -192,12 +192,14 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
             raise Exception(f"ContentHandler, {error_msg}")
         
         # Apply max_iterations limit
-        if self.max_iterations is True:
-            self.load_json_loads = data
-        elif isinstance(self.max_iterations, int):
-            self.load_json_loads = data[:self.max_iterations]
+        if isinstance(self.max_iterations, int):
+            self.load_json_loads = data[:self.max_iterations] if self.max_iterations <= len(data) else data
+
         else:
             self.load_json_loads = data
+
+        # Store original data for validation
+        self.original_json_loads = copy.deepcopy(self.load_json_loads)
         
         # Process each item across relevant fields (for CSV provider)
         if self.data_provider_source_type == "csv":
@@ -208,22 +210,14 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
                         # logging.debug(f"ContentHandler, row {item}, field {field}")
                         self.th_np_recognition_collect_cells(
                             self.load_json_loads[item][field])
-
         else:
-            for item in data:
+            for item in self.load_json_loads:
                 self.th_np_recognition_collect_cells(item)
-
-
-        
-        # logging.debug(f"ContentHandler, load_json_loads: {self.load_json_loads}")
-
-        # Store original data for validation
-        self.original_json_loads = copy.deepcopy(self.load_json_loads)
 
         threads = []
 
-        logging.debug(
-            f"ContentHandler, th_cells:{self.th_cells}")
+        #logging.debug(
+        #    f"ContentHandler, th_cells:{self.th_cells}")
 
         # Perform noun phrase recognition
         self.th_np_recognition()
@@ -244,7 +238,18 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
 
         # Export annotation results if configured
         if self.config["data_export"]["perform_export"]:
-            self.export_csv(self.load_json_loads) # TODO: Use data_export type here after implementation of the other types
+            if self.data_provider_target_type == "csv":
+                self.export_csv(self.load_json_loads, self.original_json_loads)
+                
+            elif self.data_provider_target_type == "data_provider_connector":
+                #self.export_csv(self.load_json_loads, self.original_json_loads)
+                pass
+
+
+            else:
+                error_msg = f"Data export type not supported: {self.data_provider_target_type}"
+                logging.warning(f"ContentHandler, {error_msg}")
+                raise Exception(f"ContentHandler, {error_msg}")
 
         # Perform validation if configured
         if self.config["annotation"]["perform_validation"]:

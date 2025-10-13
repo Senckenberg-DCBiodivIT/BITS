@@ -118,10 +118,11 @@ class AnnotationHelper:
                     if field in self.load_json_loads[item].keys():
                         self.load_json_loads[item][field] = self.ah_annotate_cell(
                             self.load_json_loads[item][field], sorted_keys)
-        elif self.data_provider_source_type == "data_provider_connector":
-            for item in self.load_json_loads: #Columns
-                item = self.ah_annotate_cell(item, sorted_keys)
 
+        elif self.data_provider_source_type == "data_provider_connector":
+            for i in range(len(self.load_json_loads)):
+                self.load_json_loads[i] = self.ah_annotate_cell(self.load_json_loads[i], sorted_keys)
+                
         else:
             error_msg = f"Data provider type not supported: {self.data_provider_source_type}"
             logging.warning(f"AnnotationHelper, {error_msg}")
