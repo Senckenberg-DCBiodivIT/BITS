@@ -23,7 +23,16 @@
 
     <main class="main-content">
         <h1>Welcome to SGN Annotation Tool</h1>
+        {% if processing_status == "loading" %}
+        <div id="loading-indicator" class="loading-container">
+            <h3>Processing in Progress...</h3>
+            <p>The annotation process is still running. Please wait while we process your data.</p>
+            <div class="loading-spinner"></div>
+            <p><small>This page will automatically refresh when processing is complete.</small></p>
+        </div>
+        {% else %}
         <h3>Here you see recognized noun groups, subgroups and single nouns, we will try to annotate in the next steps:</h3>
+        {% endif %}
 
         <div class="container">
             <div id="noun-groups-container">
@@ -329,14 +338,45 @@
                     console.log('Fetched data:', data);
                     updateDisplay(data);
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Error:', error);
+                    // If there's an error, it might be because processing is still running
+                    // Check if we're in loading state and refresh the page
+                    if (document.getElementById('loading-indicator')) {
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 3000);
+                    }
+                });
         }
 
-        // Aktualisierung alle 5 Sekunden
-        setInterval(updateData, 5000);
+        // Check if we're in loading state
+        function isInLoadingState() {
+            return document.getElementById('loading-indicator') !== null;
+        }
+
+        // Auto-refresh every 3 seconds if in loading state
+        function startAutoRefresh() {
+            if (isInLoadingState()) {
+                setTimeout(function() {
+                    window.location.reload();
+                }, 3000);
+            }
+        }
+
+        // Aktualisierung alle 5 Sekunden (only if not in loading state)
+        if (!isInLoadingState()) {
+            setInterval(updateData, 5000);
+        }
 
         // Erste Aktualisierung beim Laden
-        document.addEventListener('DOMContentLoaded', updateData);
+        document.addEventListener('DOMContentLoaded', function() {
+            if (isInLoadingState()) {
+                startAutoRefresh();
+            } else {
+                updateData();
+            }
+        });
     </script>
 </body>
 

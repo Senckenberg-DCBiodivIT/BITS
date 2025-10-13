@@ -145,6 +145,16 @@ class WebUI:
             Exception: If template rendering fails
         """
         try:
+            # Check if processing is still running by verifying if required attributes exist
+            if not hasattr(self, 'th_np_collection') or not hasattr(self, 'bh_request_results') or not hasattr(self, 'load_json_loads'):
+                # Processing is still running, return a loading page with auto-refresh
+                return render_template('csv_annotation.html',
+                                       noun_groups=set(),
+                                       annotated_noun_groups={},
+                                       performed_annotation=[],
+                                       compact_view=self.config["web_ui"]["compact_view"],
+                                       processing_status="loading")
+            
             return render_template('csv_annotation.html',
                                    noun_groups=self.th_np_collection,
                                    annotated_noun_groups=self.bh_request_results,
@@ -152,7 +162,8 @@ class WebUI:
                                    compact_view=self.config["web_ui"]["compact_view"])
         except Exception as e:
             logging.error(f"Error in function __show_csv_annotation: {str(e)}")
-            return f"Error in function __show_csv_annotation: {str(e)}"
+            # Return a user-friendly error message in English
+            return f"<html><body><h2>Processing in Progress</h2><p>The annotation process is still running. Please wait a moment and the page will automatically refresh.</p><script>setTimeout(function(){{window.location.reload();}}, 3000);</script></body></html>"
 
     def __show_about(self) -> str:
         """
