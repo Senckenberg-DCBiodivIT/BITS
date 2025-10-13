@@ -134,7 +134,10 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         
         # Declare data providers. Here we use an object for the source and target data provider.
         self.data_provider_source = DataProvider()
+        self.data_provider_source_type = self.config["data_provider"]["type"]
+        
         self.data_provider_target = DataProvider()
+        self.data_provider_target_type = self.config["data_export"]["type"]
 
         # Start WebUI in separate thread if enabled
         if self.config["web_ui"]["enabled"]:
@@ -169,11 +172,11 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         """
         
         # Load data based on provider type
-        if self.config["data_provider"]["type"] == "csv":
+        if self.data_provider_source_type == "csv":
             logging.debug("Using CSV data provider")
             data = json.loads(self.annotate_me_json)
             
-        elif self.config["data_provider"]["type"] == "data_provider_connector":
+        elif self.data_provider_source_type == "data_provider_connector":
             logging.debug("Using data provider connector")
             # Source data provider
             self.data_provider_source.load_config(
@@ -184,7 +187,7 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
             data = self.data_provider_source.get_responses()
             
         else:
-            error_msg = f"Data provider type not supported: {self.config['data_provider']['type']}"
+            error_msg = f"Data provider type not supported: {self.data_provider_source_type}"
             logging.warning(f"ContentHandler, {error_msg}")
             raise Exception(f"ContentHandler, {error_msg}")
         
@@ -197,7 +200,7 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
             self.load_json_loads = data
         
         # Process each item across relevant fields (for CSV provider)
-        if self.config["data_provider"]["type"] == "csv":
+        if self.data_provider_source_type == "csv":
             for item in range(len(self.load_json_loads)):  # Rows
                 # logging.debug(f"ContentHandler, row {item} (+2 using Excel)")
                 for field in self.relevant_fields:
