@@ -112,10 +112,6 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         5. Processes JSON data for annotation
         """
 
-         # Declare data providers. Here we use a variable for the source and target data provider.
-        self.data_provider_source = DataProvider()
-        self.data_provider_target = DataProvider()
-
         # Initialize base classes in correct order
         File.__init__(self)
         Cache.__init__(self)
@@ -123,7 +119,7 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
 
        
 
-        # Load configuration settings
+        # Load configuration settings TODO: check this regarding the config data version
         self.explicit_terminologies = self.config["annotation"]["ts_sources"]["explicit_terminologies"]
         self.use_collection = self.config["annotation"]["ts_sources"]["collection"]
         self.use_all_ts = not self.explicit_terminologies and not self.use_collection
@@ -135,15 +131,17 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         self.ai_use = self.config["ai_use"]
 
         self.fallback_translation_libretranslate = self.config["fallback_translation_libretranslate"]
-        self.mids_terms = self.config["mids_terms"]
-
         
+        # Declare data providers. Here we use an object for the source and target data provider.
+        self.data_provider_source = DataProvider()
+        self.data_provider_target = DataProvider()
+
         # Start WebUI in separate thread if enabled
         if self.config["web_ui"]["enabled"]:
             logging.debug("Web UI is enabled, starting server...")
             WebUI.__init__(self, TH())  # Initialize WebUI before using it
 
-        #self.__handle_json_loads() # Disabled during the development of the data provider connector
+        self.__handle_json_loads() # Disabled during the development of the data provider connector
 
     def __handle_json_loads(self) -> None:
         """
@@ -169,34 +167,57 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         and can handle different terminology source configurations including
         explicit terminologies, collections, or complete terminology searches.
         """
-        # logging.debug(f"ContentHandler, handle loads for the relevant fields: {
-        #               self.relevant_fields}")
-
-        # Load and truncate JSON data based on max_iterations
-        if isinstance(self.max_iterations, bool) and self.max_iterations == True:
-            print("\n\nBOOL and TRUE\n\n")
-            self.load_json_loads = json.loads(self.annotate_me_json)
+        
+        # Load data based on provider type
+        if self.config["data_provider"]["type"] == "csv":
+            logging.debug("Using CSV data provider")
+            data = json.loads(self.annotate_me_json)
+            
+        elif self.config["data_provider"]["type"] == "data_provider_connector":
+            logging.debug("Using data provider connector")
+            # Source data provider
+            self.data_provider_source.load_config(
+                self.config,  # Common config
+                self.config["data_provider"]["data_provider_connector"],  # Private provider config file
+                "data_provider"  # Role later in the self.config["data_provider_connection"]
+            )
+            data = self.data_provider_source.get_responses()
+            
         else:
-            print(f"\n\nNumber, self.max_iterations: {self.max_iterations}\n\n")
-            self.load_json_loads = json.loads(
-                self.annotate_me_json)[0:self.max_iterations] if self.max_iterations < len(self.annotate_me_json) else json.loads(self.annotate_me_json)
-    
+            error_msg = f"Data provider type not supported: {self.config['data_provider']['type']}"
+            logging.warning(f"ContentHandler, {error_msg}")
+            raise Exception(f"ContentHandler, {error_msg}")
+        
+        # Apply max_iterations limit
+        if self.max_iterations is True:
+            self.load_json_loads = data
+        elif isinstance(self.max_iterations, int):
+            self.load_json_loads = data[:self.max_iterations]
+        else:
+            self.load_json_loads = data
+        
+        # Process each item across relevant fields (for CSV provider)
+        if self.config["data_provider"]["type"] == "csv":
+            for item in range(len(self.load_json_loads)):  # Rows
+                # logging.debug(f"ContentHandler, row {item} (+2 using Excel)")
+                for field in self.relevant_fields:
+                    if field in self.load_json_loads[item].keys():
+                        # logging.debug(f"ContentHandler, row {item}, field {field}")
+                        self.th_np_recognition_collect_cells(
+                            self.load_json_loads[item][field])
+
+        else:
+            for item in data:
+                self.th_np_recognition_collect_cells(item)
+
+
+        
         # logging.debug(f"ContentHandler, load_json_loads: {self.load_json_loads}")
 
         # Store original data for validation
         self.original_json_loads = copy.deepcopy(self.load_json_loads)
 
         threads = []
-
-        # Process each item across relevant fields
-        for item in range(len(self.load_json_loads)):  # Rows
-            # logging.debug(f"ContentHandler, row {item} (+2 using Excel)")
-            for field in self.relevant_fields:
-                if field in self.load_json_loads[item].keys():
-                    threads.append((item, field))
-                    # logging.debug(f"ContentHandler, row {item}, field {field}")
-                    self.th_np_recognition_collect_cells(
-                        self.load_json_loads[item][field])
 
         logging.debug(
             f"ContentHandler, th_cells:{self.th_cells}")

@@ -1,5 +1,5 @@
 {
-    "version": 0.6,
+    "version": 0.7,
     "data_provider": {
         "type": "data_provider_connector",
         "file": "confidential/1row.csv",
@@ -42,18 +42,7 @@
         "port": 5001,
         "open_browser": "True"
     },
-    "mids_terms": {
-        "enabled": "false",
-        
-        "identifier": "test_dataset",
-        "label": "TEST 01",
-        "description": "Here you can describe your dataset",
-        "creator": "Automated Annotation Tool",
-        "creation_date": "default",
-        "digital_representation_type": "Text",
-        "provenance": "Automated Annotation Tool"
-    },
     "persist_cache": "False",
-    "persist_statistics": "True",
+    "persist_statistics": "False",
     "max_threads": 4
 }

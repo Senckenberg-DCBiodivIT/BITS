@@ -86,6 +86,15 @@ class DataProvider:
             # Connect to the SQL file
             self.connect_to_sql_file()
 
+            # Load query data from config
+            query_to_execute = self.instance_config["connector"]["querys"]
+            self.queries_responses = []
+
+            logging.debug(f"DataProvider, query data loaded: {query_to_execute}")
+            for query_name, query_statement in query_to_execute.items():
+                self.queries_responses.extend( [item[query_statement["response_param"]] for item in self.execute_query(query_statement["query"])])
+
+            logging.debug(f"DataProvider, responses: {self.queries_responses}")
         # Load connection parameters from config if source_type is service
         elif self.instance_config["connector"]["source_type"] == "service":
             pass
@@ -303,6 +312,11 @@ class DataProvider:
             self.connection.close()
         logging.debug("DataProvider, database connection closed")
 
+    def get_responses(self) -> List[str]:
+        """
+        Get the responses from the data provider.
+        """
+        return self.queries_responses
     ########################################
     # POSTGRESQL FUNCTIONALITY
     ########################################

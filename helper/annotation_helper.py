@@ -84,21 +84,6 @@ class AnnotationHelper:
             "original_label": single_result["label"],
             "similarity": similarity
         }
-        
-        # Only create mids object if mids_terms is enabled
-        if self.mids_terms["enabled"]:
-            result["mids"] = {}
-            result["mids"]["identifier"] = self.mids_terms["identifier"]
-            result["mids"]["label"] = self.mids_terms["label"]
-            result["mids"]["description"] = self.mids_terms["description"]
-            result["mids"]["creator"] = self.mids_terms["creator"]
-            result["mids"]["digital_representation_type"] = self.mids_terms["digital_representation_type"]
-            result["mids"]["provenance"] = self.mids_terms["provenance"]
-
-            if self.mids_terms["creation_date"] != "default":
-                result["mids"]["creation_date"] = self.mids_terms["creation_date"]
-            else:
-                result["mids"]["creation_date"] = datetime.now().strftime("%Y-%m-%d")
 
         return result
 

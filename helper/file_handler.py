@@ -50,7 +50,7 @@ class FileHandler:
         __CONFIG_VERSION (float): Required configuration version (0.4)
     """
 
-    __CONFIG_VERSION: float = 0.6
+    __CONFIG_VERSION: float = 0.7
 
     def __init__(self) -> None:
         """
@@ -318,12 +318,14 @@ class FileHandler:
         self.config["data_provider_connection"] = {"data_provider":{}, "data_export":{}}
         
         # Source data provider
+        """
         if self.config["data_provider"]["type"] == "data_provider_connector":
             self.data_provider_source.load_config(self.config, # Common config
                 self.config["data_provider"]["data_provider_connector"], # Private provider config file
                 "data_provider") # Role later in the self.config["data_provider_connection"]
-        
-        # Target data provider
+        """
+
+        # Target data provider TOTO: Update this to use the new data provider connector in the main.py
         if self.config["data_export"]["type"] == "data_provider_connector":
             self.data_provider_target.load_config(self.config,
                 self.config ["data_export"]["data_provider_connector"],
