@@ -2,6 +2,7 @@
 __pycache__
 /confidential/
 csv/annotated_*.csv
+.cursor/commands/*.md
 
 error.log
 test.json
