@@ -36,9 +36,9 @@ Classes:
 """
 
 from helper.file_handler import FileHandler as File
-from helper.cache import Cache as Cache
+from modules.cache import Cache as Cache
 from helper.validator import Validator as Validator
-from helper.data_provider import DataProvider as DataProvider
+from modules.data_provider import DataProvider as DataProvider
 
 from helper.statistics_helper import StatisticsHelper as SH
 from helper.annotation_helper import AnnotationHelper as AH
@@ -58,7 +58,7 @@ from typing import Dict, Any, List
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s:%(message)s\n")
 
 
-class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
+class ContentHandler(TH, BH, AH, SH, Validator, File, WebUI):
     """
     Main handler for content processing and annotation workflow.
 
@@ -114,10 +114,7 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
 
         # Initialize base classes in correct order
         File.__init__(self)
-        Cache.__init__(self)
         SH.__init__(self)
-
-       
 
         # Load configuration settings TODO: check this regarding the config data version
         self.explicit_terminologies = self.config["annotation"]["ts_sources"]["explicit_terminologies"]
@@ -131,6 +128,9 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
         self.ai_use = self.config["ai_use"]
 
         self.fallback_translation_libretranslate = self.config["fallback_translation_libretranslate"]
+        
+        # Cache
+        self.cache = Cache(self.config)
         
         # Declare data providers. Here we use an object for the source and target data provider.
         self.data_provider_source = DataProvider()
@@ -260,8 +260,7 @@ class ContentHandler(TH, BH, AH, SH, Validator, Cache, File, WebUI):
             self.sh_persist_data()
 
         # Persist TS cache if configured
-        if self.config["persist_cache"]:
-            self.cache_persist()
+        self.cache.cache_persist()
 
 
 if __name__ == "__main__":
