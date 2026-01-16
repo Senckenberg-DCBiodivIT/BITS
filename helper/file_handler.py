@@ -50,7 +50,7 @@ class FileHandler:
         __CONFIG_VERSION (float): Required configuration version (0.4)
     """
 
-    __CONFIG_VERSION: float = 0.7
+    __CONFIG_VERSION: float = 0.10
 
     def __init__(self) -> None:
         """
@@ -172,17 +172,6 @@ class FileHandler:
                 logging.critical(error)
                 raise Exception(error)
 
-    def __load_live_data(self) -> None:
-        """
-        Load data from a live system (Not implemented).
-        
-        This method is a placeholder for future implementation of live data
-        loading functionality. Currently not implemented.
-        
-        TODO: Implement this method for real-time data processing
-        """
-        pass
-
     def get_json_data(self) -> str:
         """
         Get the JSON data loaded from the input CSV file.
@@ -237,7 +226,7 @@ class FileHandler:
             Exception: If the configuration file cannot be loaded or is invalid
         """
         try:
-            with open('config.json', 'r') as file:
+            with open('config.json', 'r', encoding='utf-8') as file:
                 self.config = json.load(file)
 
             logging.debug(f"FileHandler, config ready")
@@ -278,7 +267,7 @@ class FileHandler:
             # Loads config_ollama.json and stores in handler.ai_config["ollama"]
         """
         try:
-            with open(f"config_{name}.json", 'r') as file:
+            with open(f"config_{name}.json", 'r', encoding='utf-8') as file:
                 self.ai_config[name] = json.load(file)
                 logging.debug(f"FileHandler, AI config for {name} loaded")
                 self.__convert_true_false_values(self.ai_config[name])
