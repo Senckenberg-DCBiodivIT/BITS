@@ -2,6 +2,7 @@
 __pycache__
 /confidential/
 csv/annotated_*.csv
+.cursor/commands/*.md
 
 error.log
 test.json
@@ -31,3 +32,6 @@ logs/
 *.db
 *.sqlite
 *.sqlite3
+
+# Data provider connector files
+data_provider_connector/confidential/

@@ -1,10 +1,18 @@
 {
-    "version": 0.5,
+    "version": 0.10,
+    "data_provider": {
+        "type": "data_provider_connector",
+        "file": "confidential/1row.csv",
+        "data_provider_connector": "data_provider_connector/confidential/sgn_local_connector.json"
+    },
+    "data_export": {
+        "type": "csv",
+        "file": "csv/annotated_test.csv",
+        "perform_export": "false",
+        "data_provider_connector": ""
+    },
     "annotation": {
-        "input_file": "confidential/1row.csv",
-        "output_file": "csv/annotated_test.csv",
-        "perform_export": "False",
-        "perform_validation": "True",
+        "perform_validation": "False",
         "ts_sources": {
             "explicit_terminologies": "False",
             "collection": "False"
@@ -14,7 +22,7 @@
             "Mineralvorbild Originalbezeichnung"
         ],
         "ignore_cell_value":["-", "null"],
-        "max_iterations": 5
+        "max_iterations": 3
     },
     "fallback_translation_libretranslate": {
         "enabled": "True",
@@ -28,24 +36,17 @@
         "gpt4all": "False",
         "gpt4all_local": "False"
     },
-    "web_ui": {
+    "cache": {
         "enabled": "True",
+        "persist": "True",
+        "threshold_days": 90  
+    },
+    "web_ui": {
+        "enabled": "false",
         "compact_view": "true",
         "port": 5001,
         "open_browser": "True"
     },
-    "mids_terms": {
-        "enabled": "false",
-        
-        "identifier": "test_dataset",
-        "label": "TEST 01",
-        "description": "Here you can describe your dataset",
-        "creator": "Automated Annotation Tool",
-        "creation_date": "default",
-        "digital_representation_type": "Text",
-        "provenance": "Automated Annotation Tool"
-    },
-    "persist_cache": "False",
-    "persist_statistics": "True",
+    "persist_statistics": "False",
     "max_threads": 4
 }
