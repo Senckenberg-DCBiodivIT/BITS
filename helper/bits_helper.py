@@ -303,21 +303,27 @@ class BitsHelper:
                 if cache_result:
                     query_result = cache_result
                     logging.debug(
-                        f"bh_request_explicit_terminologies, use cached result")
+                        f"bh_request_explicit_terminologies, use cached result for terminology {terminology_name}")
 
                 else:
                     # Perform query
                     
                     logging.debug(
-                        f"bh_request_explicit_terminologies, missing cached result")
+                        f"bh_request_explicit_terminologies, missing cached result for terminology {terminology_name}")
 
                     url = self.__TIB_URL_SEARCH + f'ontology={terminology_name}&q={item_normalized}'
                     # logging.debug(f"bh_request_explicit_terminologies, url, handler: {url}")   
                     query_result = self.__perform_query_search(url)
                     print(f"\nquery_result: {query_result}\n")
 
-                    # self.cache_set_query_item(  TODO: Enable Cache later, after all kinds of requests are implemented
-                    #     terminology_name, item_normalized, query_result)
+                    self.cache.set_item(
+                        {"kind": "terminology", "name": terminology_name},
+                        item_normalized,
+                        query_result
+                    )
+                    logging.debug(
+                        f"bh_request_explicit_terminologies, set cached result for terminology {terminology_name}"
+                    )
 
                 # Here we have cached results and query responses for each terminology.
                 print("\n\n\nCall __create_item_results_from_query")
@@ -448,13 +454,13 @@ class BitsHelper:
                 result_temp = dict()
 
                 # Check cache for existing results using collection-specific key
-                # cache_result = self.cache_get_query_item(
-                #     ts_collection, item_normalized)
-                cache_result = False # TODO: Enable Cache later, after all kinds of requests are implemented
+                cache_result = self.cache.get_item(
+                    {"kind": "collection", "name": ts_collection}, item_normalized)
+                
                 if cache_result:
                     query_result = cache_result
-                    # logging.debug(
-                    #     f"__bh_request_collection, use cached result for collection {ts_collection}")
+                    logging.debug(
+                        f"__bh_request_collection, use cached result for collection {ts_collection}")
 
                 else:
                     # Perform query with collection parameters
@@ -462,8 +468,14 @@ class BitsHelper:
                     # logging.debug(f"__bh_request_collection, url: {url}")   
                     query_result = self.__perform_query_search(url)
 
-                    # self.cache_set_query_item(  TODO: Enable Cache later, after all kinds of requests are implemented
-                    #     ts_collection, item_normalized, query_result)
+                    self.cache.set_item(
+                        {"kind": "collection", "name": ts_collection},
+                        item_normalized,
+                        query_result
+                    )
+                    logging.debug(
+                        f"__bh_request_collection, set cached result for collection {ts_collection}"
+                    )
                 
                 # Here we have cached results and query responses for all terminologies.
                 result_temp = self.__create_item_results_from_query(
