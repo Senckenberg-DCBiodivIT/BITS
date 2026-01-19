@@ -169,47 +169,6 @@ class Cache:
             with open(self.__CACHE_FILENAME, 'w', encoding='utf-8') as file:
                 json.dump(temp_cache, file, indent=4, ensure_ascii=False)
 
-    # def set_cache_item(self, flag: str, item_normalized: str, source: str, single_result: Dict[str, Any]) -> None:
-    #     """
-    #     Store a query result in the NP cache.
-    #     """
-    #     try:
-    #         if self.__NP_ENABLED:
-    #             with Cache.__cache_items_lock:
-    #                 self.__check_create_item_in_cache(Cache.__cache_items[flag], item_normalized)
-    #                 self.__check_create_item_in_cache(Cache.__cache_items[flag][item_normalized], source)
-    #                 Cache.__cache_items[flag][item_normalized][source] = single_result
-    #                 Cache.__cache_items[flag][item_normalized][source]["cache_time"] = time.time()
-    #     except Exception as e:
-    #         logging.error(f"Cache, unable to set NP cache: {str(e)}. Continuing annotation process.")
-
-    # def get_cache_item(self, flag: str, item_normalized: str, source: str) -> Any:
-    #     # 1. Check if cache is enabled and the item is in the cache
-    #     # 2. Check if the item is expired
-    #     # 3. Return the item
-    #     if self.__NP_ENABLED and flag == "np" and item_normalized in Cache.__cache_items["np"] and source in Cache.__cache_items["np"][item_normalized]:
-    #         if "cache_time" in Cache.__cache_items["np"][item_normalized][source] and time.time() - Cache.__cache_items["np"][item_normalized][source]["cache_time"] <= self.__NP_THRESHOLD:
-    #             return Cache.__cache_items["np"][item_normalized][source]
-        
-    #     if self.__TS_ENABLED and flag == "ts" and item_normalized in Cache.__cache_items["ts"] and source in Cache.__cache_items["ts"][item_normalized]:
-    #         if "cache_time" in Cache.__cache_items["ts"][item_normalized][source] and time.time() - Cache.__cache_items["ts"][item_normalized][source]["cache_time"] <= self.__TS_THRESHOLD:
-    #             return Cache.__cache_items["ts"][item_normalized][source]
-    #     return None
-
-    # def __check_create_item_in_cache(self, obj: Dict[str, Any], name: str) -> None:
-    #     """
-    #     Ensure a terminology key exists in the cache dictionary.
-        
-    #     This helper method ensures that a terminology key exists in the cache
-    #     structure before attempting to store or retrieve data for that terminology.
-        
-    #     Args:
-    #         obj (Dict[str, Any]): The dictionary to check/modify
-    #         name (str): The terminology key to verify/create
-    #     """
-    #     if name not in obj.keys():
-    #         obj[name] = {}
-
     def __load_cache(self) -> None:
         """
         Load cached data from the JSON file.
@@ -219,72 +178,88 @@ class Cache:
         It also filters out expired cache entries based on the cache
         time window.
         
-        The method supports both terminology-based and flat cache structures
-        and handles the explicit_terminologies flag appropriately.
+        The cache structure is: {item_normalized: {kind: {name: value}}}
+        where kind can be "terminology", "collection", or "all_terminologies".
         
         Raises:
             FileNotFoundError: If the cache file doesn't exist (handled gracefully)
             json.JSONDecodeError: If the cache file contains invalid JSON (handled gracefully)
         """
-        # loaded_data = {}
-        # try:
-        #     with open(self.__CACHE_FILENAME, 'r', encoding='utf-8') as file:
-        #         loaded_data = json.load(file)
-        # except FileNotFoundError:
-        #     logging.info(f"Cache file {self.__CACHE_FILENAME} not found. Starting with empty cache.")
-        #     return None
-        # except json.JSONDecodeError:
-        #     logging.error(f"Invalid JSON in cache file {self.__CACHE_FILENAME}")
-        #     return None
-
-        # # Load NP cache if enabled
-        # if self.__NP_ENABLED and "np" in loaded_data:
-        #     Cache.__cache_items["np"] = loaded_data["np"]
-        #     logging.debug(f"NP cache loaded: {len(Cache.__cache_items['np'])} items")
+        if not self.__CACHE_ENABLED or not self.__CACHE_PERSIST:
+            logging.debug("Cache loading skipped (disabled or persist disabled)")
+            return
         
-        # # Load TS cache if enabled
-        # if self.__TS_ENABLED and "ts" in loaded_data:
-        #     Cache.__cache_items["ts"] = loaded_data["ts"]
-        #     logging.debug(f"TS cache loaded: {len(Cache.__cache_items['ts'])} items")
-
-        # logging.info(f"Cache loaded successfully")
-        pass
+        try:
+            with open(self.__CACHE_FILENAME, 'r', encoding='utf-8') as file:
+                loaded_data = json.load(file)
+            
+            if not loaded_data:
+                logging.info("Cache file is empty. Starting with empty cache.")
+                return
+            
+            # Load the cache structure directly
+            with self.__cache_items_lock:
+                self.__cache_items = loaded_data
+            
+            # Count loaded items for logging
+            total_items = len(self.__cache_items)
+            logging.info(f"Cache loaded successfully: {total_items} normalized items")
+            
+            # Clean expired entries after loading
+            self.__clean_cache()
+            
+        except FileNotFoundError:
+            logging.info(f"Cache file {self.__CACHE_FILENAME} not found. Starting with empty cache.")
+        except json.JSONDecodeError as e:
+            logging.error(f"Invalid JSON in cache file {self.__CACHE_FILENAME}: {e}. Starting with empty cache.")
+        except Exception as e:
+            logging.error(f"Error loading cache from {self.__CACHE_FILENAME}: {e}. Starting with empty cache.")
 
     def __clean_cache(self) -> None:
         """
-        Clean cache depending on the expiration threshold
-        """
-        pass
-
-    def __is_cache_valid(self, item_normalized: str, source: str, cache_type: str) -> bool:
-        """
-        Check if the cached data for the given item and source is still valid.
+        Clean cache depending on the expiration threshold.
         
-        Args:
-            item_normalized: The normalized item name
-            source: The data source
-            
-        Returns:
-            bool: True if cache is valid and not expired, False otherwise
+        This method removes expired cache entries based on the __CACHE_THRESHOLD
+        (configured in days, converted to seconds). It iterates through all
+        cache entries and removes those whose cache_time exceeds the threshold.
+        
+        The cache structure is: {item_normalized: {kind: {name: value}}}
+        where each value contains a "cache_time" timestamp.
         """
-        # if not self.__NP_ENABLED:
-        #     return False
+        if not self.__CACHE_ENABLED:
+            return
+        
+        current_time = time.time()
+        items_removed = 0
+        
+        with self.__cache_items_lock:
+            # Create a list of items to remove to avoid modifying dict during iteration
+            items_to_remove = []
             
-        # try:
-        #     with Cache.__cache_items_lock:
-        #         if (item_normalized in Cache.__cache_items["np"] and 
-        #             source in Cache.__cache_items["np"][item_normalized] and
-        #             "cache_time" in Cache.__cache_items["np"][item_normalized][source]):
+            for item_normalized, kinds_dict in self.__cache_items.items():
+                # Check each kind (terminology, collection, all_terminologies)
+                for kind, names_dict in kinds_dict.items():
+                    names_to_remove = []
                     
-        #             cache_time = Cache.__cache_items["np"][item_normalized][source]["cache_time"]
-        #             current_time = time.time()
+                    for name, value in names_dict.items():
+                        # Check if cache_time exists and if entry is expired
+                        if "cache_time" in value:
+                            cache_time = value["cache_time"]
+                            if (current_time - cache_time) > self.__CACHE_THRESHOLD:
+                                names_to_remove.append(name)
+                                items_removed += 1
                     
-        #             # Check if cache is still within threshold
-        #             return (current_time - cache_time) <= self.__NP_THRESHOLD
-                    
-        # except (KeyError, TypeError):
-        #     pass
+                    # Remove expired entries from this kind
+                    for name in names_to_remove:
+                        del names_dict[name]
+                
+                # If all kinds are empty for this item, mark item for removal
+                if all(len(names_dict) == 0 for names_dict in kinds_dict.values()):
+                    items_to_remove.append(item_normalized)
             
-        # return False
-        pass
-
+            # Remove items that have no cached data left
+            for item_normalized in items_to_remove:
+                del self.__cache_items[item_normalized]
+        
+        if items_removed > 0:
+            logging.info(f"Cache cleaned: {items_removed} expired entries removed")
