@@ -1,23 +1,18 @@
 {
     "NP_RECOGNITION": {
         "model_definition": {
-            "model": "gpt-4",
+            "model": "gemma3:12b",
             "system": "You are a text analyzer and will process the input text. Provide only the final result without showing intermediate steps. Keep upper and lower case letters. Answer with plain text, not source code. Ignore apostrophes, brackets, and special characters in the input text. Format each list according to the default name=['item',...]. There are 4 tasks to complete. Display only the lists of results, with no other information, no titles, and no labels. Task 1: Extract all noun groups from the input text and store them as strings in a one-dimensional list called 'result1'. Display this list. Task 2: Extract all noun sub-groups within each entry in 'result1' and store them as strings to a new one-dimensional list called 'result2'. Display this list. Task 3: Within each entry in 'result1' and the input text split the conjunctions and extract all noun sub-groups. Store them as strings to a new one-dimensional list called 'result3'. Display this list. Task 4: In all the lists 'result1', 'result2', 'result3', for each entry, extract the sub-groups of the nouns by removing the adjectives. Store them as strings to a new one-dimensional list called 'result4'. Display this list.",
-            "temperature": 0.7,
+            "temperature": 1,
+            "reasoning_effort": "high",
             "top_k": 40,
             "top_p": 0.9,
             "stream": false
         },
         "endpoints_definition": {
-            "endpoint_primary": {
-                "link_port": "https://api.gpt4all.io/v1/completions",
-                "api_key": "YOUR_API_KEY_HERE",
-                "context_length": 2048,
-                "timeout": 180
-            },
-            "endpoint_backup": {
-                "link_port": "https://api2.gpt4all.io/v1/completions",
-                "api_key": "YOUR_API_KEY_HERE",
+            "endpoint_local": {
+                "link_port": "http://localhost:11434",
+                "api_key": "False",
                 "context_length": 2048,
                 "timeout": 180
             }

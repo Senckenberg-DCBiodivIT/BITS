@@ -1,5 +1,5 @@
 {
-    "version": 0.10,
+    "version": 0.11,
     "data_provider": {
         "type": "data_provider_connector",
         "file": "confidential/1row.csv",
@@ -33,6 +33,7 @@
     "ai_use": {
         "spacy": "True",
         "ollama": "False",
+        "ollama_local": "False",
         "gpt4all": "False",
         "gpt4all_local": "False"
     },
