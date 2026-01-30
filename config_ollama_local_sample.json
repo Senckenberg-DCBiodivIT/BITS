@@ -10,14 +10,8 @@
             "stream": false
         },
         "endpoints_definition": {
-            "endpoint_jetson_agx": {
-                "link_port": "http://localhost:8080",
-                "api_key": "False",
-                "context_length": 2048,
-                "timeout": 180
-            },
-            "endpoint_jetson_thor": {
-                "link_port": "http://localhost:8081",
+            "endpoint_local": {
+                "link_port": "http://localhost:11434",
                 "api_key": "False",
                 "context_length": 2048,
                 "timeout": 180

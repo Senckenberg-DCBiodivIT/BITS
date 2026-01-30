@@ -50,7 +50,7 @@ class FileHandler:
         __CONFIG_VERSION (float): Required configuration version (0.4)
     """
 
-    __CONFIG_VERSION: float = 0.10
+    __CONFIG_VERSION: float = 0.11
 
     def __init__(self) -> None:
         """
@@ -69,7 +69,7 @@ class FileHandler:
 
         self.config = {}  # Here you go the config data from the config file
         # Here you go the ai config data from the ai config files
-        self.ai_config = {"ollama": {}, "gpt4all": {}, "gpt4all_local": {}}
+        self.ai_config = {"ollama": {}, "ollama_local": {}, "gpt4all": {}, "gpt4all_local": {}}
 
         self.__load_config()
 
@@ -242,6 +242,8 @@ class FileHandler:
         # Load AI config
         if self.config["ai_use"]["ollama"] == True:
             self.__load_ai_config("ollama")
+        if self.config["ai_use"].get("ollama_local") == True:
+            self.__load_ai_config("ollama_local")
         if self.config["ai_use"]["gpt4all"] == True:
             self.__load_ai_config("gpt4all")
         if self.config["ai_use"]["gpt4all_local"] == True:

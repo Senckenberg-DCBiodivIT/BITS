@@ -98,6 +98,7 @@ class TextHelper:
     # Here we dont need a Lock() for the collection because service performance is the bottleneck
     __th_gpt4all_local_np_collection: Set[str] = set()
     __th_gpt4all_service_np_collection: Set[str] = set()
+    __th_ollama_local_np_collection: Set[str] = set()
     __th_ollama_np_collection: Set[str] = set()
 
     th_np_collection: Set[str] = set()
@@ -134,36 +135,44 @@ class TextHelper:
         
         This method orchestrates the NP recognition process through multiple steps
         running concurrently:
-        1. SpaCy processing (always active)
-        2. Local GPT4All (if configured)
-        3. GPT4All online service (if configured)
-        4. Ollama service (if configured)
+        1. SpaCy processing (always active if configured)
+        2. GPT4All local (if configured)
+        3. GPT4All external services (if configured) - with multi-endpoint support
+        4. Ollama local (if configured)
+        5. Ollama external services (if configured) - with multi-endpoint support
         
         The method uses ThreadPoolExecutor to run different AI services in parallel,
-        improving overall processing time. Results from all services are combined
-        into the final th_np_collection.
+        improving overall processing time. External services support multi-endpoint
+        load balancing, automatic failover, and retry mechanisms. Results from all 
+        services are combined into the final th_np_collection.
         """
         logging.debug("Start NP recognition")
         np_start_time = time.time()
 
         # Create thread pool for parallel execution
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        # max_workers determines how many services can run in parallel
+        # Limited by max_threads from config to prevent system freeze
+        with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
             futures = []
             
             # Step 1: Spacy
-            if self.ai_use["spacy"]:
+            if self.ai_use.get("spacy"):
                 futures.append(executor.submit(self.__np_recognition_spacy_single_cell_threader))
             
-            # Step 2: GPT4All locally
-            if self.ai_use["gpt4all_local"]:
+            # Step 2: GPT4All local
+            if self.ai_use.get("gpt4all_local"):
                 futures.append(executor.submit(self.__np_recognition_gpt4all_local))
             
-            # Step 3: GPT4All online service (commented out for now)
-            # if self.ai_use["gpt4all_service"] == "True":
-            #     futures.append(executor.submit(self.__np_recognition_gpt4all_service))
+            # Step 3: GPT4All external services
+            if self.ai_use.get("gpt4all"):
+                futures.append(executor.submit(self.__np_recognition_gpt4all))
             
-            # Step 4: Ollama service
-            if self.ai_use["ollama"]:
+            # Step 4: Ollama local
+            if self.ai_use.get("ollama_local"):
+                futures.append(executor.submit(self.__np_recognition_ollama_local))
+
+            # Step 5: Ollama external services
+            if self.ai_use.get("ollama"):
                 futures.append(executor.submit(self.__np_recognition_ollama))
                 
             # Wait for all tasks to complete
@@ -175,15 +184,24 @@ class TextHelper:
         logging.debug(
             f"NPs from gpt4all local: {self.__th_gpt4all_local_np_collection}")
         logging.debug(
-            f"NPs from gpt4all service: {self.__th_gpt4all_service_np_collection}")
+            f"NPs from gpt4all external services: {self.__th_gpt4all_service_np_collection}")
         logging.debug(
-            f"NPs from ollama service: {self.__th_ollama_np_collection}")
+            f"NPs from ollama local: {self.__th_ollama_local_np_collection}")
+        logging.debug(
+            f"NPs from ollama external services: {self.__th_ollama_np_collection}")
 
         # Combine results from all services, filtering by minimum length
-        combined_nps = {item for item in self.__th_spacy_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH} | {
-            item for item in self.__th_gpt4all_local_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH} | {
-            item for item in self.__th_gpt4all_service_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH} | {
-            item for item in self.__th_ollama_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH}
+        combined_nps = {
+            item for item in self.__th_spacy_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH
+        } | {
+            item for item in self.__th_gpt4all_local_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH
+        } | {
+            item for item in self.__th_gpt4all_service_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH
+        } | {
+            item for item in self.__th_ollama_local_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH
+        } | {
+            item for item in self.__th_ollama_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH
+        }
         
         # Clean standalone numbers from the combined collection
         TextHelper.th_np_collection = self.__clean_standalone_numbers(combined_nps)
@@ -357,55 +375,240 @@ class TextHelper:
         logging.info(f"GPT NP recognition done in {
                      execution_time_recognition} seconds")
 
-    # GPT4All online service NP recognition
-    # TODO: Implement
-
-    # Ollama service NP recognition
-    def __np_recognition_ollama(self) -> None:
+    # GPT4All external services NP recognition
+    def __np_recognition_gpt4all(self) -> None:
         """
-        Process text using Ollama service for noun phrase recognition.
+        Process text using external GPT4All services for noun phrase recognition.
         
-        Uses the Ollama API to extract noun phrases based on the configuration
-        in config_ollama.json. Processes each cell and updates the ollama 
-        noun phrase collection.
+        Uses the GPT4All API with multi-endpoint support to extract noun phrases 
+        based on the configuration in config_gpt4all.json. Features include:
+        - Parallel processing with ThreadPoolExecutor
+        - Random load balancing across multiple endpoints
+        - Automatic failover and retry mechanism (2 retries per endpoint)
+        - Endpoint blacklisting for failed endpoints
+        - Thread-safe collection updates
+        
+        The method:
+        1. Creates a task queue from self.th_cells
+        2. Spawns worker threads for parallel processing
+        3. Each worker randomly selects available endpoints
+        4. Retries failed requests up to 2 times per endpoint
+        5. Blacklists consistently failing endpoints
+        6. Updates the GPT4All service noun phrase collection thread-safely
+
+        TODO: Extend this functionality to an external module to have a better readability and maintainability.
+        """
+        import random
+        from queue import Queue, Empty
+        from requests.exceptions import Timeout, ConnectionError
+        
+        logging.debug("Start GPT4All external services NP recognition")
+        start_time = time.time()
+        
+        self.__th_gpt4all_service_np_collection = set()  # Reset collection
+        collection_lock = Lock()  # Thread-safe updates
+        
+        # Get all available endpoints
+        endpoints_config = self.ai_config["gpt4all"]["NP_RECOGNITION"]["endpoints_definition"]
+        endpoint_names = list(endpoints_config.keys())
+        
+        if not endpoint_names:
+            logging.error("No GPT4All endpoints configured")
+            return
+            
+        # Blacklist for failed endpoints
+        blacklisted_endpoints = set()
+        blacklist_lock = Lock()
+        
+        # Create task queue with shallow copy
+        cells_to_process = self.th_cells[:]
+        task_queue = Queue()
+        for cell in cells_to_process:
+            task_queue.put(cell)
+        
+        # Helper function: Select random available endpoint
+        def select_endpoint():
+            with blacklist_lock:
+                available = [ep for ep in endpoint_names if ep not in blacklisted_endpoints]
+            if not available:
+                return None
+            return random.choice(available)
+        
+        # Helper function: Send API request
+        def send_request(cell, endpoint_name, endpoint_config):
+            headers = {'Content-Type': 'application/json'}
+            if endpoint_config.get("api_key") and endpoint_config["api_key"] != "False":
+                headers['Authorization'] = f'Bearer {endpoint_config["api_key"]}'
+            
+            # Prepare payload for GPT4All API
+            payload = {
+                "model": self.ai_config["gpt4all"]["NP_RECOGNITION"]["model_definition"]["model"],
+                "prompt": f"{self.ai_config['gpt4all']['NP_RECOGNITION']['model_definition']['system']}\n\n{cell}",
+                "temperature": self.ai_config["gpt4all"]["NP_RECOGNITION"]["model_definition"]["temperature"],
+                "top_k": self.ai_config["gpt4all"]["NP_RECOGNITION"]["model_definition"]["top_k"],
+                "top_p": self.ai_config["gpt4all"]["NP_RECOGNITION"]["model_definition"]["top_p"],
+                "stream": self.ai_config["gpt4all"]["NP_RECOGNITION"]["model_definition"]["stream"],
+            }
+            
+            response = requests.post(
+                endpoint_config['link_port'],
+                headers=headers,
+                json=payload,
+                timeout=endpoint_config["timeout"]
+            )
+            return response
+        
+        # Helper function: Process cell with retry logic
+        def process_cell_with_retry(cell, endpoint_name):
+            endpoint_config = endpoints_config[endpoint_name]
+            max_retries = 2
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    response = send_request(cell, endpoint_name, endpoint_config)
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        # Handle different response formats from GPT4All API
+                        if 'choices' in result and len(result['choices']) > 0:
+                            response_text = result['choices'][0].get('text', '')
+                        elif 'response' in result:
+                            response_text = result.get('response', '')
+                        else:
+                            response_text = str(result)
+                        
+                        response_text = self.__remove_think_tags(response_text)
+                        
+                        # Extract noun phrases from response
+                        try:
+                            noun_phrases = self.__extract_list_from_response(response_text)
+                            with collection_lock:
+                                self.__th_gpt4all_service_np_collection.update(noun_phrases)
+                            logging.debug(f"GPT4All ({endpoint_name}) NPs for cell '{cell}': {noun_phrases}")
+                            return True  # Success
+                        except Exception as e:
+                            logging.error(f"Error extracting GPT4All NPs from {endpoint_name}: {str(e)}")
+                            self.sh_set_ai_error(cell, response_text)
+                            return False
+                    else:
+                        logging.warning(f"GPT4All API error from {endpoint_name}: {response.status_code}")
+                        if attempt < max_retries:
+                            time.sleep(0.5)  # Short pause before retry
+                        continue
+                        
+                except (Timeout, ConnectionError) as e:
+                    logging.warning(f"Connection error with {endpoint_name} (attempt {attempt + 1}/{max_retries + 1}): {str(e)}")
+                    if attempt < max_retries:
+                        time.sleep(0.5)  # Short pause before retry
+                    continue
+                except Exception as e:
+                    logging.error(f"Unexpected error calling GPT4All {endpoint_name}: {str(e)}")
+                    if attempt < max_retries:
+                        time.sleep(0.5)
+                    continue
+            
+            # All retries failed - blacklist endpoint
+            with blacklist_lock:
+                if endpoint_name not in blacklisted_endpoints:
+                    blacklisted_endpoints.add(endpoint_name)
+                    logging.warning(f"Endpoint {endpoint_name} blacklisted for this batch after {max_retries + 1} failed attempts")
+            return False
+        
+        # Worker function for thread pool
+        def worker():
+            while True:
+                try:
+                    cell = task_queue.get(timeout=1)
+                except Empty:
+                    break
+                
+                # Try to process the cell
+                success = False
+                attempts = 0
+                max_endpoint_attempts = len(endpoint_names)
+                
+                while not success and attempts < max_endpoint_attempts:
+                    endpoint_name = select_endpoint()
+                    if endpoint_name is None:
+                        logging.error("All GPT4All endpoints are offline, cannot process remaining cells")
+                        task_queue.put(cell)  # Put cell back for potential retry
+                        break
+                    
+                    success = process_cell_with_retry(cell, endpoint_name)
+                    if not success:
+                        attempts += 1
+                
+                if not success and attempts >= max_endpoint_attempts:
+                    logging.error(f"Failed to process cell after trying all endpoints: {cell[:50]}...")
+                    self.sh_set_ai_error(cell, "All endpoints failed")
+                
+                task_queue.task_done()
+        
+        # Create and start worker threads
+        with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
+            futures = [executor.submit(worker) for _ in range(self.max_threads)]
+            
+            # Wait for all workers to complete
+            for future in futures:
+                future.result()
+        
+        execution_time = time.time() - start_time
+        logging.info(f"GPT4All external services NP recognition completed in {execution_time} seconds")
+        logging.debug(f"Total GPT4All service NPs: {self.__th_gpt4all_service_np_collection}")
+        if blacklisted_endpoints:
+            logging.info(f"Blacklisted endpoints: {blacklisted_endpoints}")
+
+    # Ollama local NP recognition
+    def __np_recognition_ollama_local(self) -> None:
+        """
+        Perform noun phrase recognition using local Ollama installation.
+        
+        This method processes each cell using a local Ollama instance to
+        extract noun phrases. It handles API requests to the local endpoint,
+        text generation, and result extraction with proper error handling.
         
         The method:
         1. Prepares API requests with proper headers and authentication
-        2. Sends requests to the Ollama service for each cell
+        2. Sends requests to the local Ollama instance for each cell
         3. Processes responses and extracts noun phrases
-        4. Handles errors and updates statistics
+        4. Updates the local Ollama noun phrase collection
+
+        TODO: Extend this functionality to an external module to have a better readability and maintainability.
         """
-        logging.debug("Start Ollama service NP recognition")
+        logging.debug("Start Ollama local NP recognition")
         start_time = time.time()
         
-        self.__th_ollama_np_collection = set()  # Reset collection
+        self.__th_ollama_local_np_collection = set()  # Reset collection
+        
+        # Get the first (and typically only) endpoint for local installation
+        endpoints = self.ai_config["ollama_local"]["NP_RECOGNITION"]["endpoints_definition"]
+        endpoint_name = list(endpoints.keys())[0]
+        endpoint_config = endpoints[endpoint_name]
         
         # Prepare API parameters
         headers = {'Content-Type': 'application/json'}
-        if self.ai_config["ollama"]["NP_RECOGNITION"]["api_key"]:
-            headers['Authorization'] = f'Bearer {self.ai_config["ollama"]["NP_RECOGNITION"]["api_key"]}'
+        if endpoint_config.get("api_key") and endpoint_config["api_key"] != "False":
+            headers['Authorization'] = f'Bearer {endpoint_config["api_key"]}'
             
         for cell in self.th_cells:
             try:
                 # Prepare request payload
                 payload = {
-                    "model": self.ai_config["ollama"]["NP_RECOGNITION"]["model"],
+                    "model": self.ai_config["ollama_local"]["NP_RECOGNITION"]["model_definition"]["model"],
                     "prompt": cell,
-                    "system": self.ai_config["ollama"]["NP_RECOGNITION"]["system"],
-                    "temperature": self.ai_config["ollama"]["NP_RECOGNITION"]["temperature"],
-                    "reasoning_effort": self.ai_config["ollama"]["NP_RECOGNITION"]["reasoning_effort"],
-                    "top_k": self.ai_config["ollama"]["NP_RECOGNITION"]["top_k"],
-                    "top_p": self.ai_config["ollama"]["NP_RECOGNITION"]["top_p"],
-                    "context_length": self.ai_config["ollama"]["NP_RECOGNITION"]["context_length"],
-                    "stream": self.ai_config["ollama"]["NP_RECOGNITION"]["stream"],
+                    "system": self.ai_config["ollama_local"]["NP_RECOGNITION"]["model_definition"]["system"],
+                    "temperature": self.ai_config["ollama_local"]["NP_RECOGNITION"]["model_definition"]["temperature"],
+                    "top_k": self.ai_config["ollama_local"]["NP_RECOGNITION"]["model_definition"]["top_k"],
+                    "top_p": self.ai_config["ollama_local"]["NP_RECOGNITION"]["model_definition"]["top_p"],
+                    "stream": self.ai_config["ollama_local"]["NP_RECOGNITION"]["model_definition"]["stream"],
                 }
                 
                 # Make API request
                 response = requests.post(
-                    f"{self.ai_config['ollama']['NP_RECOGNITION']['link_port']}/api/generate",
+                    f"{endpoint_config['link_port']}/api/generate",
                     headers=headers,
                     json=payload,
-                    timeout=self.ai_config['ollama']["NP_RECOGNITION"]["timeout"]
+                    timeout=endpoint_config["timeout"]
                 )
                 
                 if response.status_code == 200:
@@ -413,27 +616,203 @@ class TextHelper:
                     response_text = result.get('response', '')
                     response_text = self.__remove_think_tags(response_text)
 
-                    logging.debug(f"Ollama response: {response_text}")  
+                    logging.debug(f"Ollama local response: {response_text}")  
                     
                     # Extract noun phrases from response
                     try:
                         noun_phrases = self.__extract_list_from_response(response_text)
-                        self.__th_ollama_np_collection.update(noun_phrases)
-                        logging.debug(f"Ollama NPs for cell '{cell}': {noun_phrases}")
+                        self.__th_ollama_local_np_collection.update(noun_phrases)
+                        logging.debug(f"Ollama local NPs for cell '{cell}': {noun_phrases}")
                     except Exception as e:
-                        logging.error(f"Error extracting Ollama NPs: {str(e)}")
+                        logging.error(f"Error extracting Ollama local NPs: {str(e)}")
                         self.sh_set_ai_error(cell, response_text)
                 else:
-                    logging.error(f"Ollama API error: {response.status_code} - {response.text}")
+                    logging.error(f"Ollama local API error: {response.status_code} - {response.text}")
                     self.sh_set_ai_error(cell, f"API Error: {response.status_code}")
                     
             except Exception as e:
-                logging.error(f"Error calling Ollama service: {str(e)}")
+                logging.error(f"Error calling Ollama local service: {str(e)}")
                 self.sh_set_ai_error(cell, str(e))
                 
         execution_time = time.time() - start_time
-        logging.info(f"Ollama NP recognition completed in {execution_time} seconds")
+        logging.info(f"Ollama local NP recognition completed in {execution_time} seconds")
+        logging.debug(f"Total Ollama local NPs: {self.__th_ollama_local_np_collection}")
+
+    # Ollama external services NP recognition
+    def __np_recognition_ollama(self) -> None:
+        """
+        Process text using external Ollama services for noun phrase recognition.
+        
+        Uses the Ollama API with multi-endpoint support to extract noun phrases 
+        based on the configuration in config_ollama.json. Features include:
+        - Parallel processing with ThreadPoolExecutor
+        - Random load balancing across multiple endpoints
+        - Automatic failover and retry mechanism (2 retries per endpoint)
+        - Endpoint blacklisting for failed endpoints
+        - Thread-safe collection updates
+        
+        The method:
+        1. Creates a task queue from self.th_cells
+        2. Spawns worker threads for parallel processing
+        3. Each worker randomly selects available endpoints
+        4. Retries failed requests up to 2 times per endpoint
+        5. Blacklists consistently failing endpoints
+        6. Updates the Ollama noun phrase collection thread-safely
+
+        TODO: Extend this functionality to an external module to have a better readability and maintainability.
+        """
+        import random
+        from queue import Queue, Empty
+        from requests.exceptions import Timeout, ConnectionError
+        
+        logging.debug("Start Ollama external services NP recognition")
+        start_time = time.time()
+        
+        self.__th_ollama_np_collection = set()  # Reset collection
+        collection_lock = Lock()  # Thread-safe updates
+        
+        # Get all available endpoints
+        endpoints_config = self.ai_config["ollama"]["NP_RECOGNITION"]["endpoints_definition"]
+        endpoint_names = list(endpoints_config.keys())
+        
+        if not endpoint_names:
+            logging.error("No Ollama endpoints configured")
+            return
+            
+        # Blacklist for failed endpoints
+        blacklisted_endpoints = set()
+        blacklist_lock = Lock()
+        
+        # Create task queue with shallow copy
+        cells_to_process = self.th_cells[:]
+        task_queue = Queue()
+        for cell in cells_to_process:
+            task_queue.put(cell)
+        
+        # Helper function: Select random available endpoint
+        def select_endpoint():
+            with blacklist_lock:
+                available = [ep for ep in endpoint_names if ep not in blacklisted_endpoints]
+            if not available:
+                return None
+            return random.choice(available)
+        
+        # Helper function: Send API request
+        def send_request(cell, endpoint_name, endpoint_config):
+            headers = {'Content-Type': 'application/json'}
+            if endpoint_config.get("api_key") and endpoint_config["api_key"] != "False":
+                headers['Authorization'] = f'Bearer {endpoint_config["api_key"]}'
+            
+            payload = {
+                "model": self.ai_config["ollama"]["NP_RECOGNITION"]["model_definition"]["model"],
+                "prompt": cell,
+                "system": self.ai_config["ollama"]["NP_RECOGNITION"]["model_definition"]["system"],
+                "temperature": self.ai_config["ollama"]["NP_RECOGNITION"]["model_definition"]["temperature"],
+                "top_k": self.ai_config["ollama"]["NP_RECOGNITION"]["model_definition"]["top_k"],
+                "top_p": self.ai_config["ollama"]["NP_RECOGNITION"]["model_definition"]["top_p"],
+                "stream": self.ai_config["ollama"]["NP_RECOGNITION"]["model_definition"]["stream"],
+            }
+            
+            response = requests.post(
+                f"{endpoint_config['link_port']}/api/generate",
+                headers=headers,
+                json=payload,
+                timeout=endpoint_config["timeout"]
+            )
+            return response
+        
+        # Helper function: Process cell with retry logic
+        def process_cell_with_retry(cell, endpoint_name):
+            endpoint_config = endpoints_config[endpoint_name]
+            max_retries = 2
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    response = send_request(cell, endpoint_name, endpoint_config)
+                    
+                    if response.status_code == 200:
+                        result = response.json()
+                        response_text = result.get('response', '')
+                        response_text = self.__remove_think_tags(response_text)
+                        
+                        # Extract noun phrases from response
+                        try:
+                            noun_phrases = self.__extract_list_from_response(response_text)
+                            with collection_lock:
+                                self.__th_ollama_np_collection.update(noun_phrases)
+                            logging.debug(f"Ollama ({endpoint_name}) NPs for cell '{cell}': {noun_phrases}")
+                            return True  # Success
+                        except Exception as e:
+                            logging.error(f"Error extracting Ollama NPs from {endpoint_name}: {str(e)}")
+                            self.sh_set_ai_error(cell, response_text)
+                            return False
+                    else:
+                        logging.warning(f"Ollama API error from {endpoint_name}: {response.status_code}")
+                        if attempt < max_retries:
+                            time.sleep(0.5)  # Short pause before retry
+                        continue
+                        
+                except (Timeout, ConnectionError) as e:
+                    logging.warning(f"Connection error with {endpoint_name} (attempt {attempt + 1}/{max_retries + 1}): {str(e)}")
+                    if attempt < max_retries:
+                        time.sleep(0.5)  # Short pause before retry
+                    continue
+                except Exception as e:
+                    logging.error(f"Unexpected error calling Ollama {endpoint_name}: {str(e)}")
+                    if attempt < max_retries:
+                        time.sleep(0.5)
+                    continue
+            
+            # All retries failed - blacklist endpoint
+            with blacklist_lock:
+                if endpoint_name not in blacklisted_endpoints:
+                    blacklisted_endpoints.add(endpoint_name)
+                    logging.warning(f"Endpoint {endpoint_name} blacklisted for this batch after {max_retries + 1} failed attempts")
+            return False
+        
+        # Worker function for thread pool
+        def worker():
+            while True:
+                try:
+                    cell = task_queue.get(timeout=1)
+                except Empty:
+                    break
+                
+                # Try to process the cell
+                success = False
+                attempts = 0
+                max_endpoint_attempts = len(endpoint_names)
+                
+                while not success and attempts < max_endpoint_attempts:
+                    endpoint_name = select_endpoint()
+                    if endpoint_name is None:
+                        logging.error("All Ollama endpoints are offline, cannot process remaining cells")
+                        task_queue.put(cell)  # Put cell back for potential retry
+                        break
+                    
+                    success = process_cell_with_retry(cell, endpoint_name)
+                    if not success:
+                        attempts += 1
+                
+                if not success and attempts >= max_endpoint_attempts:
+                    logging.error(f"Failed to process cell after trying all endpoints: {cell[:50]}...")
+                    self.sh_set_ai_error(cell, "All endpoints failed")
+                
+                task_queue.task_done()
+        
+        # Create and start worker threads
+        with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
+            futures = [executor.submit(worker) for _ in range(self.max_threads)]
+            
+            # Wait for all workers to complete
+            for future in futures:
+                future.result()
+        
+        execution_time = time.time() - start_time
+        logging.info(f"Ollama external services NP recognition completed in {execution_time} seconds")
         logging.debug(f"Total Ollama NPs: {self.__th_ollama_np_collection}")
+        if blacklisted_endpoints:
+            logging.info(f"Blacklisted endpoints: {blacklisted_endpoints}")
 
     def th_np_translation_en(self, np: str) -> str:
         """
