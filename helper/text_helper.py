@@ -247,6 +247,7 @@ class TextHelper:
 
         threads = []
         self.__th_spacy_np_collection = set()  # Reset the collection
+        self.sh_reset_ai_service_response_number("spacy") # Reset the number of responses from Spacy
 
         for language in ["en", "ger"]:  # Here we use the language models for english and german
             for cell in self.th_cells:
@@ -273,6 +274,8 @@ class TextHelper:
         # Handle None values
         if cell is None:
             return
+
+        self.sh_add_ai_service_response_number("spacy") # Add the number of responses from Spacy
             
         cell_temp = cell[:]
         for sign in self.__TH_SGN_SPLIT_SENTENCE:
@@ -336,6 +339,7 @@ class TextHelper:
 
         start_time_recognition = time.time()
         self.__th_gpt4all_local_np_collection = set()  # reset the collection
+        self.sh_reset_ai_service_response_number("gpt4all_local")  # Reset the number of responses from GPT4All local
 
         if self.ai_config["gpt4all_local"]["local_path"]:
             pass  # TODO: Implement in later steps if we have a local instance
@@ -355,6 +359,7 @@ class TextHelper:
 
                 try:
                     cell_np = self.__extract_list_from_response(cell_np)
+                    self.sh_add_ai_service_response_number("gpt4all_local")  # StatisticsHelper, increase the number of responses
                 except:
                     logging.error(f"Error extracting GPT list: {cell_np}")
                     self.sh_set_ai_error(cell, cell_np)
@@ -415,6 +420,9 @@ class TextHelper:
         if not endpoint_names:
             logging.error("No GPT4All endpoints configured")
             return
+
+        for ep in endpoint_names:
+            self.sh_reset_ai_service_response_number(ep)  # Reset the number of responses from each GPT4All endpoint
             
         # Blacklist for failed endpoints
         blacklisted_endpoints = set()
@@ -485,6 +493,7 @@ class TextHelper:
                             with collection_lock:
                                 self.__th_gpt4all_service_np_collection.update(noun_phrases)
                             logging.debug(f"GPT4All ({endpoint_name}) NPs for cell '{cell}': {noun_phrases}")
+                            self.sh_add_ai_service_response_number(endpoint_name)  # StatisticsHelper, increase the number of responses from the endpoint
                             return True  # Success
                         except Exception as e:
                             logging.error(f"Error extracting GPT4All NPs from {endpoint_name}: {str(e)}")
@@ -579,6 +588,7 @@ class TextHelper:
         start_time = time.time()
         
         self.__th_ollama_local_np_collection = set()  # Reset collection
+        self.sh_reset_ai_service_response_number("ollama_local")  # Reset the number of responses from Ollama local
         
         # Get the first (and typically only) endpoint for local installation
         endpoints = self.ai_config["ollama_local"]["NP_RECOGNITION"]["endpoints_definition"]
@@ -623,6 +633,7 @@ class TextHelper:
                         noun_phrases = self.__extract_list_from_response(response_text)
                         self.__th_ollama_local_np_collection.update(noun_phrases)
                         logging.debug(f"Ollama local NPs for cell '{cell}': {noun_phrases}")
+                        self.sh_add_ai_service_response_number("ollama_local")  # StatisticsHelper, increase the number of responses
                     except Exception as e:
                         logging.error(f"Error extracting Ollama local NPs: {str(e)}")
                         self.sh_set_ai_error(cell, response_text)
@@ -669,6 +680,7 @@ class TextHelper:
         start_time = time.time()
         
         self.__th_ollama_np_collection = set()  # Reset collection
+        
         collection_lock = Lock()  # Thread-safe updates
         
         # Get all available endpoints
@@ -678,7 +690,10 @@ class TextHelper:
         if not endpoint_names:
             logging.error("No Ollama endpoints configured")
             return
-            
+
+        for ep in endpoint_names:
+            self.sh_reset_ai_service_response_number(ep)  # Reset the number of responses from each Ollama endpoint
+        
         # Blacklist for failed endpoints
         blacklisted_endpoints = set()
         blacklist_lock = Lock()
@@ -741,6 +756,9 @@ class TextHelper:
                             with collection_lock:
                                 self.__th_ollama_np_collection.update(noun_phrases)
                             logging.debug(f"Ollama ({endpoint_name}) NPs for cell '{cell}': {noun_phrases}")
+                            
+                            self.sh_add_ai_service_response_number(endpoint_name) # StatisticsHelper, increase the number of responses from the endpoint
+
                             return True  # Success
                         except Exception as e:
                             logging.error(f"Error extracting Ollama NPs from {endpoint_name}: {str(e)}")

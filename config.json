@@ -3,7 +3,7 @@
     "data_provider": {
         "type": "data_provider_connector",
         "file": "confidential/1row.csv",
-        "data_provider_connector": "data_provider_connector/confidential/sgn_local_connector.json"
+        "data_provider_connector": "data_provider_connector/confidential/sgn_local_connector_source.json"
     },
     "data_export": {
         "type": "csv",
@@ -22,7 +22,7 @@
             "Mineralvorbild Originalbezeichnung"
         ],
         "ignore_cell_value":["-", "null"],
-        "max_iterations": 30
+        "max_iterations": 50
     },
     "fallback_translation_libretranslate": {
         "enabled": "True",
@@ -31,8 +31,8 @@
         "url": "http://localhost:5002/translate"
     },
     "ai_use": {
-        "spacy": "False",
-        "ollama": "True",
+        "spacy": "True",
+        "ollama": "true",
         "ollama_local": "False",
         "gpt4all": "False",
         "gpt4all_local": "False"
@@ -48,6 +48,6 @@
         "port": 5001,
         "open_browser": "True"
     },
-    "persist_statistics": "False",
+    "persist_statistics": "true",
     "max_threads": 4
 }

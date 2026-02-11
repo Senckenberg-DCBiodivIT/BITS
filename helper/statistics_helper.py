@@ -62,8 +62,10 @@ class StatisticsHelper:
                 "hit": {}, 
                 "miss": {}
             }, 
-            "gpt": {
-                "error": []
+            "ai": {
+                "error": [],
+                "service_response_number":{
+                }
             },
             "validation": {}
         }
@@ -169,6 +171,26 @@ class StatisticsHelper:
             np_detection (str): Description of the noun phrase detection error
         """
         self.statistics["ai"]["error"].append({cell: np_detection})
+    
+    # Distributed AI Services Tracking
+    def sh_add_ai_service_response_number(self, service: str) -> None:
+        """
+        Record the number of responses from an AI service. This is used to track the number of responses from each service.
+        
+        Args:
+            service (str): The name of the AI service
+        """
+
+        self.statistics["ai"]["service_response_number"][service] = 1 if self.statistics["ai"]["service_response_number"].get(service) is None else self.statistics["ai"]["service_response_number"][service] + 1
+
+    def sh_reset_ai_service_response_number(self, service: str) -> None:
+        """
+        Reset the number of responses from an AI service. This is used to reset the number of responses from each service.
+        
+        Args:
+            service (str): The name of the AI service
+        """
+        self.statistics["ai"]["service_response_number"][service] = 0
 
     # Data Persistence
     def sh_persist_data(self) -> None:
@@ -179,6 +201,8 @@ class StatisticsHelper:
         and uses the FileHandler's store_text_file method for reliable
         file writing with proper error handling.
         """
+        logging.debug(f"StatisticsHelper, persist data to statistics.json")
+
         try:
             # Prepare the content as a formatted JSON string
             content = json.dumps(self.statistics, indent=4, ensure_ascii=False)
