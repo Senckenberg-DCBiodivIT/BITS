@@ -201,23 +201,29 @@ class ContentHandler(TH, BH, AH, SH, Validator, File, WebUI):
         # Store original data for validation
         self.original_json_loads = copy.deepcopy(self.load_json_loads)
         
-        # Process each item across relevant fields (for CSV provider)
+        # Process each item across relevant fields - consistent for both CSV and connector
+        # Connector may return list of dicts (rows) or list of strings; CSV returns list of dicts
         if self.data_provider_source_type == "csv":
             for item in range(len(self.load_json_loads)):  # Rows
-                # logging.debug(f"ContentHandler, row {item} (+2 using Excel)")
                 for field in self.relevant_fields:
                     if field in self.load_json_loads[item].keys():
-                        # logging.debug(f"ContentHandler, row {item}, field {field}")
                         self.th_np_recognition_collect_cells(
                             self.load_json_loads[item][field])
         else:
             for item in self.load_json_loads:
-                self.th_np_recognition_collect_cells(item)
+                if isinstance(item, dict):
+                    # Connector returns rows with fields - extract each like CSV
+                    for field in self.relevant_fields:
+                        if field in item.keys():
+                            self.th_np_recognition_collect_cells(item[field])
+                else:
+                    # Connector returns flat list of strings (one value per item)
+                    self.th_np_recognition_collect_cells(item)
 
         threads = []
 
-        #logging.debug(
-        #    f"ContentHandler, th_cells:{self.th_cells}")
+        logging.info(
+            f"Collected {len(self.th_cells)} cells from {len(self.load_json_loads)} rows for NP recognition")
 
         # Perform noun phrase recognition
         self.th_np_recognition()

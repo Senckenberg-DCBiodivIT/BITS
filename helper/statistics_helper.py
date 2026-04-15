@@ -65,6 +65,7 @@ class StatisticsHelper:
             "ai": {
                 "error": [],
                 "service_response_number":{
+                    "comment":"Spacy uses the english and german language models for NP recognition. This is the reason why we have a double number of entries for Spacy."
                 }
             },
             "validation": {}

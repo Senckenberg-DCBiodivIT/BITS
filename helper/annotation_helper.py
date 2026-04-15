@@ -130,7 +130,7 @@ class AnnotationHelper:
 
         self.__set_statistics()
 
-    def ah_annotate_cell(self, cell: str, interactive_annotation_keys: List[str] = None) -> str:
+    def ah_annotate_cell(self, cell: str, interactive_annotation_keys=None) -> str:
         """
         Annotates a single cell's content with matching terminology.
         
@@ -141,8 +141,12 @@ class AnnotationHelper:
         
         Args:
             cell (str): The cell content to be annotated
-            interactive_annotation_keys (List[str], optional): Sorted list of annotation keys to apply.
-                If None, keys will be sorted by length in descending order.
+            interactive_annotation_keys (Dict | List | None):
+                - Dict: interactive mode — the isolated local results dict returned by
+                  bh_request_explicit_terminologies; used for both key iteration and value lookup.
+                - List: automated mode pre-sorted — keys to iterate; values read from
+                  self.bh_request_results (called from ah_annotate_dataset).
+                - None: automated mode — keys and values both from self.bh_request_results.
                 
         Returns:
             str: The annotated cell content with terminology annotations applied
@@ -155,25 +159,36 @@ class AnnotationHelper:
             >>> print(result)
             "This contains {'metal oxide': {...}} and other materials"
         """
-        sorted_keys = self.__sort_keys(self.bh_request_results) if interactive_annotation_keys is None else self.__sort_keys(interactive_annotation_keys)
-        
+        if isinstance(interactive_annotation_keys, dict):
+            # Interactive mode: the caller passed the isolated local results dict.
+            # Use it for both key iteration and value lookup so the class-level
+            # bh_request_results (automated pipeline) is never touched.
+            results_dict = interactive_annotation_keys
+            sorted_keys = self.__sort_keys(results_dict)
+        elif interactive_annotation_keys is None:
+            # Automated mode, no pre-sorted keys supplied.
+            results_dict = self.bh_request_results
+            sorted_keys = self.__sort_keys(results_dict)
+        else:
+            # Automated mode: ah_annotate_dataset passes a pre-sorted list of keys.
+            results_dict = self.bh_request_results
+            sorted_keys = self.__sort_keys(interactive_annotation_keys)
 
         print(f"\n\nTry to annotate cell: {cell} \n\nwith sorted_keys: {sorted_keys}\n\n")
 
-
         logging.debug(f"AnnotationHelper, ah_annotate_cell: {cell}")
-        logging.debug(f"self.bh_request_results: {self.bh_request_results}")
+        logging.debug(f"results_dict: {results_dict}")
 
         print("\n\nStart to annotate cell\n")
         for annotation_key in sorted_keys:
 
             if annotation_key in cell:
-                print(f"annotation_key in Cell: {annotation_key}, value is: {self.bh_request_results[annotation_key]}")
+                print(f"annotation_key in Cell: {annotation_key}, value is: {results_dict[annotation_key]}")
             
             cell = self.th_replace_except_braces(
-                cell, annotation_key, str({annotation_key: self.bh_request_results[annotation_key]})) if self.bh_request_results[annotation_key] != {} else cell
+                cell, annotation_key, str({annotation_key: results_dict[annotation_key]})) if results_dict[annotation_key] != {} else cell
 
-        logging.debug(f"AnnotationHelper, return cell: {cell}")    
+        logging.debug(f"AnnotationHelper, return cell: {cell}")
         return cell
 
     def __sort_keys(self, target: 'list[str] | dict[str, object]') -> List[str]:

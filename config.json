@@ -1,14 +1,15 @@
 {
     "version": 0.11,
     "data_provider": {
-        "type": "data_provider_connector",
-        "file": "confidential/1row.csv",
+        "type_backup": "data_provider_connector",
+        "type": "csv",
+        "file": "confidential/04-Herbarium Senckenbergianum (GLM) - Bryophyta.csv",
         "data_provider_connector": "data_provider_connector/confidential/sgn_local_connector_source.json"
     },
     "data_export": {
         "type": "csv",
-        "file": "csv/annotated_test.csv",
-        "perform_export": "false",
+        "file": "confidential/04_annotated.csv",
+        "perform_export": "true",
         "data_provider_connector": ""
     },
     "annotation": {
@@ -18,11 +19,27 @@
             "collection": "False"
         },
         "relevant_fields": [
-            "Beschreibung 1",
-            "Mineralvorbild Originalbezeichnung"
+            "Adm. Einheit",
+            "Administrative Einheit",
+            "Bemerkung",
+            "Bemerkung Bestimmung",
+            "Bemerkung Objekt",
+            "Bemerkung zum Organismus",
+            "Bestimmer",
+            "Familie",
+            "Fundortbeschreibung",
+            "Sammeldatum",
+            "Sammler",
+            "Sammlung",
+            "Sammlungsname",
+            "Sammlungstyp",
+            "Spalte 1",
+            "Taxon",
+            "Taxonomie",
+            "Typus"
         ],
         "ignore_cell_value":["-", "null"],
-        "max_iterations": 50
+        "max_iterations": 1
     },
     "fallback_translation_libretranslate": {
         "enabled": "True",
@@ -32,7 +49,7 @@
     },
     "ai_use": {
         "spacy": "True",
-        "ollama": "true",
+        "ollama": "false",
         "ollama_local": "False",
         "gpt4all": "False",
         "gpt4all_local": "False"
@@ -43,7 +60,7 @@
         "threshold_days": 90  
     },
     "web_ui": {
-        "enabled": "false",
+        "enabled": "true",
         "compact_view": "true",
         "port": 5001,
         "open_browser": "True"
