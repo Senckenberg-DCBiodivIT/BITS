@@ -129,6 +129,24 @@ class TextHelper:
         for key, value in config.items():
             setattr(self, key, value)
 
+    # --- Statistics guard wrappers ---
+    # These delegate to StatisticsHelper when available (full ContentHandler pipeline)
+    # and silently no-op when TextHelper is used standalone (interactive/WebUI mode).
+
+    def __sh_reset_service(self, service: str) -> None:
+        if hasattr(self, 'sh_reset_ai_service_response_number'):
+            self.sh_reset_ai_service_response_number(service)
+
+    def __sh_add_service(self, service: str) -> None:
+        if hasattr(self, 'sh_add_ai_service_response_number'):
+            self.sh_add_ai_service_response_number(service)
+
+    def __sh_set_error(self, cell: str, detail: str) -> None:
+        if hasattr(self, 'sh_set_ai_error'):
+            self.sh_set_ai_error(cell, detail)
+
+    # --- End statistics guard wrappers ---
+
     def th_np_recognition(self) -> None:
         """
         Perform noun phrase recognition using configured AI services in parallel.
@@ -203,8 +221,10 @@ class TextHelper:
             item for item in self.__th_ollama_np_collection if len(item) >= self.__TH_MIN_NP_LENGTH
         }
         
-        # Clean standalone numbers from the combined collection
-        TextHelper.th_np_collection = self.__clean_standalone_numbers(combined_nps)
+        # Clean standalone numbers from the combined collection.
+        # Write to self (instance attribute) so that TH_WEBUI and ContentHandler
+        # each keep their own collection instead of sharing the class-level slot.
+        self.th_np_collection = self.__clean_standalone_numbers(combined_nps)
 
     def th_np_recognition_collect_cells(self, cell: str) -> None:
         """
@@ -247,6 +267,7 @@ class TextHelper:
 
         threads = []
         self.__th_spacy_np_collection = set()  # Reset the collection
+        self.__sh_reset_service("spacy") # Reset the number of responses from Spacy
 
         for language in ["en", "ger"]:  # Here we use the language models for english and german
             for cell in self.th_cells:
@@ -273,6 +294,8 @@ class TextHelper:
         # Handle None values
         if cell is None:
             return
+
+        self.__sh_add_service("spacy") # Add the number of responses from Spacy
             
         cell_temp = cell[:]
         for sign in self.__TH_SGN_SPLIT_SENTENCE:
@@ -336,6 +359,7 @@ class TextHelper:
 
         start_time_recognition = time.time()
         self.__th_gpt4all_local_np_collection = set()  # reset the collection
+        self.__sh_reset_service("gpt4all_local")  # Reset the number of responses from GPT4All local
 
         if self.ai_config["gpt4all_local"]["local_path"]:
             pass  # TODO: Implement in later steps if we have a local instance
@@ -355,9 +379,10 @@ class TextHelper:
 
                 try:
                     cell_np = self.__extract_list_from_response(cell_np)
+                    self.__sh_add_service("gpt4all_local")  # StatisticsHelper, increase the number of responses
                 except:
                     logging.error(f"Error extracting GPT list: {cell_np}")
-                    self.sh_set_ai_error(cell, cell_np)
+                    self.__sh_set_error(cell, cell_np)
                     cell_np = []
 
                 logging.debug(
@@ -398,8 +423,7 @@ class TextHelper:
 
         TODO: Extend this functionality to an external module to have a better readability and maintainability.
         """
-        import random
-        from queue import Queue, Empty
+        from queue import Queue
         from requests.exceptions import Timeout, ConnectionError
         
         logging.debug("Start GPT4All external services NP recognition")
@@ -415,24 +439,41 @@ class TextHelper:
         if not endpoint_names:
             logging.error("No GPT4All endpoints configured")
             return
+
+        for ep in endpoint_names:
+            self.__sh_reset_service(ep)  # Reset the number of responses from each GPT4All endpoint
             
         # Blacklist for failed endpoints
         blacklisted_endpoints = set()
         blacklist_lock = Lock()
+        # In-flight count per endpoint: faster endpoints finish sooner, so they get more work
+        in_flight = {ep: 0 for ep in endpoint_names}
+        in_flight_lock = Lock()
         
         # Create task queue with shallow copy
         cells_to_process = self.th_cells[:]
         task_queue = Queue()
         for cell in cells_to_process:
             task_queue.put(cell)
+        # Sentinel pattern: one None per worker signals "no more work" - avoids workers exiting
+        # prematurely when queue is temporarily empty during processing (timeout=1 caused issues)
+        for _ in range(self.max_threads):
+            task_queue.put(None)
         
-        # Helper function: Select random available endpoint
+        def release_endpoint(ep):
+            with in_flight_lock:
+                in_flight[ep] = max(0, in_flight[ep] - 1)
+
+        # Select endpoint with fewest in-flight requests - faster endpoints get more work
         def select_endpoint():
             with blacklist_lock:
                 available = [ep for ep in endpoint_names if ep not in blacklisted_endpoints]
             if not available:
                 return None
-            return random.choice(available)
+            with in_flight_lock:
+                chosen = min(available, key=lambda ep: in_flight[ep])
+                in_flight[chosen] += 1
+            return chosen
         
         # Helper function: Send API request
         def send_request(cell, endpoint_name, endpoint_config):
@@ -485,10 +526,11 @@ class TextHelper:
                             with collection_lock:
                                 self.__th_gpt4all_service_np_collection.update(noun_phrases)
                             logging.debug(f"GPT4All ({endpoint_name}) NPs for cell '{cell}': {noun_phrases}")
+                            self.__sh_add_service(endpoint_name)  # StatisticsHelper, increase the number of responses from the endpoint
                             return True  # Success
                         except Exception as e:
                             logging.error(f"Error extracting GPT4All NPs from {endpoint_name}: {str(e)}")
-                            self.sh_set_ai_error(cell, response_text)
+                            self.__sh_set_error(cell, response_text)
                             return False
                     else:
                         logging.warning(f"GPT4All API error from {endpoint_name}: {response.status_code}")
@@ -517,9 +559,9 @@ class TextHelper:
         # Worker function for thread pool
         def worker():
             while True:
-                try:
-                    cell = task_queue.get(timeout=1)
-                except Empty:
+                cell = task_queue.get()
+                if cell is None:  # Sentinel: no more work
+                    task_queue.task_done()
                     break
                 
                 # Try to process the cell
@@ -531,16 +573,17 @@ class TextHelper:
                     endpoint_name = select_endpoint()
                     if endpoint_name is None:
                         logging.error("All GPT4All endpoints are offline, cannot process remaining cells")
-                        task_queue.put(cell)  # Put cell back for potential retry
+                        self.__sh_set_error(cell, "All endpoints offline")
                         break
                     
                     success = process_cell_with_retry(cell, endpoint_name)
+                    release_endpoint(endpoint_name)
                     if not success:
                         attempts += 1
                 
                 if not success and attempts >= max_endpoint_attempts:
                     logging.error(f"Failed to process cell after trying all endpoints: {cell[:50]}...")
-                    self.sh_set_ai_error(cell, "All endpoints failed")
+                    self.__sh_set_error(cell, "All endpoints failed")
                 
                 task_queue.task_done()
         
@@ -579,6 +622,7 @@ class TextHelper:
         start_time = time.time()
         
         self.__th_ollama_local_np_collection = set()  # Reset collection
+        self.__sh_reset_service("ollama_local")  # Reset the number of responses from Ollama local
         
         # Get the first (and typically only) endpoint for local installation
         endpoints = self.ai_config["ollama_local"]["NP_RECOGNITION"]["endpoints_definition"]
@@ -623,16 +667,17 @@ class TextHelper:
                         noun_phrases = self.__extract_list_from_response(response_text)
                         self.__th_ollama_local_np_collection.update(noun_phrases)
                         logging.debug(f"Ollama local NPs for cell '{cell}': {noun_phrases}")
+                        self.__sh_add_service("ollama_local")  # StatisticsHelper, increase the number of responses
                     except Exception as e:
                         logging.error(f"Error extracting Ollama local NPs: {str(e)}")
-                        self.sh_set_ai_error(cell, response_text)
+                        self.__sh_set_error(cell, response_text)
                 else:
                     logging.error(f"Ollama local API error: {response.status_code} - {response.text}")
-                    self.sh_set_ai_error(cell, f"API Error: {response.status_code}")
+                    self.__sh_set_error(cell, f"API Error: {response.status_code}")
                     
             except Exception as e:
                 logging.error(f"Error calling Ollama local service: {str(e)}")
-                self.sh_set_ai_error(cell, str(e))
+                self.__sh_set_error(cell, str(e))
                 
         execution_time = time.time() - start_time
         logging.info(f"Ollama local NP recognition completed in {execution_time} seconds")
@@ -661,14 +706,14 @@ class TextHelper:
 
         TODO: Extend this functionality to an external module to have a better readability and maintainability.
         """
-        import random
-        from queue import Queue, Empty
+        from queue import Queue
         from requests.exceptions import Timeout, ConnectionError
         
         logging.debug("Start Ollama external services NP recognition")
         start_time = time.time()
         
         self.__th_ollama_np_collection = set()  # Reset collection
+        
         collection_lock = Lock()  # Thread-safe updates
         
         # Get all available endpoints
@@ -678,24 +723,41 @@ class TextHelper:
         if not endpoint_names:
             logging.error("No Ollama endpoints configured")
             return
-            
+
+        for ep in endpoint_names:
+            self.__sh_reset_service(ep)  # Reset the number of responses from each Ollama endpoint
+        
         # Blacklist for failed endpoints
         blacklisted_endpoints = set()
         blacklist_lock = Lock()
+        # In-flight count per endpoint: faster endpoints finish sooner, so they get more work
+        in_flight = {ep: 0 for ep in endpoint_names}
+        in_flight_lock = Lock()
         
         # Create task queue with shallow copy
         cells_to_process = self.th_cells[:]
         task_queue = Queue()
         for cell in cells_to_process:
             task_queue.put(cell)
+        # Sentinel pattern: one None per worker signals "no more work" - avoids workers exiting
+        # prematurely when queue is temporarily empty during processing (timeout=1 caused issues)
+        for _ in range(self.max_threads):
+            task_queue.put(None)
         
-        # Helper function: Select random available endpoint
+        def release_endpoint(ep):
+            with in_flight_lock:
+                in_flight[ep] = max(0, in_flight[ep] - 1)
+
+        # Select endpoint with fewest in-flight requests - faster endpoints get more work
         def select_endpoint():
             with blacklist_lock:
                 available = [ep for ep in endpoint_names if ep not in blacklisted_endpoints]
             if not available:
                 return None
-            return random.choice(available)
+            with in_flight_lock:
+                chosen = min(available, key=lambda ep: in_flight[ep])
+                in_flight[chosen] += 1
+            return chosen
         
         # Helper function: Send API request
         def send_request(cell, endpoint_name, endpoint_config):
@@ -741,10 +803,13 @@ class TextHelper:
                             with collection_lock:
                                 self.__th_ollama_np_collection.update(noun_phrases)
                             logging.debug(f"Ollama ({endpoint_name}) NPs for cell '{cell}': {noun_phrases}")
+                            
+                            self.__sh_add_service(endpoint_name) # StatisticsHelper, increase the number of responses from the endpoint
+
                             return True  # Success
                         except Exception as e:
                             logging.error(f"Error extracting Ollama NPs from {endpoint_name}: {str(e)}")
-                            self.sh_set_ai_error(cell, response_text)
+                            self.__sh_set_error(cell, response_text)
                             return False
                     else:
                         logging.warning(f"Ollama API error from {endpoint_name}: {response.status_code}")
@@ -773,9 +838,9 @@ class TextHelper:
         # Worker function for thread pool
         def worker():
             while True:
-                try:
-                    cell = task_queue.get(timeout=1)
-                except Empty:
+                cell = task_queue.get()
+                if cell is None:  # Sentinel: no more work
+                    task_queue.task_done()
                     break
                 
                 # Try to process the cell
@@ -787,16 +852,17 @@ class TextHelper:
                     endpoint_name = select_endpoint()
                     if endpoint_name is None:
                         logging.error("All Ollama endpoints are offline, cannot process remaining cells")
-                        task_queue.put(cell)  # Put cell back for potential retry
+                        self.__sh_set_error(cell, "All endpoints offline")
                         break
                     
                     success = process_cell_with_retry(cell, endpoint_name)
+                    release_endpoint(endpoint_name)
                     if not success:
                         attempts += 1
                 
                 if not success and attempts >= max_endpoint_attempts:
                     logging.error(f"Failed to process cell after trying all endpoints: {cell[:50]}...")
-                    self.sh_set_ai_error(cell, "All endpoints failed")
+                    self.__sh_set_error(cell, "All endpoints failed")
                 
                 task_queue.task_done()
         

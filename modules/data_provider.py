@@ -89,9 +89,14 @@ class DataProvider:
             # Load query data from config
             query_to_execute = self.instance_config["connector"]["querys"]
             self.queries_responses = []
+            return_full_rows = self.instance_config["connector"].get("return_full_rows", False)
 
             for query_name, query_statement in query_to_execute.items():
-                self.queries_responses.extend( [item[query_statement["response_param"]] for item in self.execute_query(query_statement["query"])])
+                rows = self.execute_query(query_statement["query"])
+                if return_full_rows:
+                    self.queries_responses.extend(rows)
+                else:
+                    self.queries_responses.extend([item[query_statement["response_param"]] for item in rows])
 
         # Load connection parameters from config if source_type is service
         elif self.instance_config["connector"]["source_type"] == "service":

@@ -87,13 +87,13 @@ class BitsHelper:
         bh_start_time = time.time()
 
         if kind == "explicit_terminologies":
-            self.bh_request_explicit_terminologies(self.__class__.th_np_collection)
+            self.bh_request_explicit_terminologies(self.th_np_collection)
             
         elif kind == "use_collection":
-            self.__bh_request_collection(self.__class__.th_np_collection, self.use_collection) # Here we use a parameter for the collection, because we also have an interactive collection selection in the WebUI later.
+            self.__bh_request_collection(self.th_np_collection, self.use_collection) # Here we use a parameter for the collection, because we also have an interactive collection selection in the WebUI later.
 
         elif kind == "use_all_ts":
-            self.__bh_request_all_terminologies(self.__class__.th_np_collection)
+            self.__bh_request_all_terminologies(self.th_np_collection)
 
         else:
             raise ValueError(f"Invalid request kind: {kind}")
@@ -273,6 +273,13 @@ class BitsHelper:
             Dict[str, Dict[str, Dict]]: Dictionary containing search results for each
                 noun phrase, organized by terminology
         """
+        # Interactive calls (interactive_explicit_terminologies != []) use a local dict so that
+        # they stay completely isolated from the automated pipeline's class-level results.
+        is_interactive = interactive_explicit_terminologies != []
+        interactive_results: Dict[str, Dict[str, Dict]] = dict()
+
+        terminologies = interactive_explicit_terminologies if is_interactive else self.explicit_terminologies
+
         for item in np_collection:
             item_normalized = item.strip().lower()
             self.sh_set_np(item, item_normalized)
@@ -291,9 +298,9 @@ class BitsHelper:
                 print(f"\nitem: {item}, item_normalized_translated: {item_normalized_translated}\n")
             
             self.sh_set_np_translation(item, item_normalized_translated)
-            print(f"Statistics done. Start FOR loop for terminology names in self.explicit_terminologies: {self.explicit_terminologies}") 
+            print(f"Statistics done. Start FOR loop for terminology names in terminologies: {terminologies}") 
 
-            for terminology_name in self.explicit_terminologies if interactive_explicit_terminologies == [] else interactive_explicit_terminologies:
+            for terminology_name in terminologies:
                 # Check query cache. Maybe there is a result from another one instance or a stored result
                 print(f"\nterminology_name: {terminology_name}\n")
                 
@@ -312,7 +319,6 @@ class BitsHelper:
                         f"bh_request_explicit_terminologies, missing cached result for terminology {terminology_name}")
 
                     url = self.__TIB_URL_SEARCH + f'ontology={terminology_name}&q={item_normalized}'
-                    # logging.debug(f"bh_request_explicit_terminologies, url, handler: {url}")   
                     query_result = self.__perform_query_search(url)
                     print(f"\nquery_result: {query_result}\n")
 
@@ -329,12 +335,19 @@ class BitsHelper:
                 print("\n\n\nCall __create_item_results_from_query")
                 result_temp = self.__create_item_results_from_query(
                     query_result, item_normalized, result_temp, terminology_name, item_normalized_translated)
-                print(f"result_temp in bh_request_explicit_terminologies: {result_temp}")    
-            BitsHelper.bh_request_results[item] = result_temp
-            print(f"BitsHelper.bh_request_results[item]: {BitsHelper.bh_request_results[item]}")    
+                print(f"result_temp in bh_request_explicit_terminologies: {result_temp}")
 
+            if is_interactive:
+                # Keep interactive results local — do NOT pollute the automated pipeline's dict
+                interactive_results[item] = result_temp
+                print(f"interactive_results[item]: {interactive_results[item]}")
+            else:
+                BitsHelper.bh_request_results[item] = result_temp
+                print(f"BitsHelper.bh_request_results[item]: {BitsHelper.bh_request_results[item]}")
 
-        return BitsHelper.bh_request_results # For the WebUI or in general for the external requests
+        if is_interactive:
+            return interactive_results
+        return BitsHelper.bh_request_results  # For the automated pipeline / external requests
 
     def __bh_request_all_terminologies(self, np_collection: Set[str]) -> Dict[str, Dict[str, Dict]]:
         """

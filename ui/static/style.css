@@ -169,6 +169,27 @@ button:hover {
     font-family: monospace;
 }
 
+#np_collection,
+#np_annotation {
+    margin-top: 20px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    min-height: 40px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+#np_collection pre,
+#np_annotation pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    font-family: monospace;
+}
+
 /* Annotation link and tooltip styles */
 .annotation-link {
     color: #0066cc;
