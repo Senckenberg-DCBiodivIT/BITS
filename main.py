@@ -130,7 +130,7 @@ class ContentHandler(TH, BH, AH, SH, Validator, File, WebUI):
         self.fallback_translation_libretranslate = self.config["fallback_translation_libretranslate"]
         
         # Cache
-        self.cache = Cache(self.config)
+        self.cache = Cache(self, self.config)
         
         # Declare data providers. Here we use an object for the source and target data provider.
         self.data_provider_source = DataProvider()

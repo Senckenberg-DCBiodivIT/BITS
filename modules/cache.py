@@ -58,7 +58,8 @@ class Cache:
     __cache_items = dict()  # Format: {term: {terminology: {name: value}, collection: {name: value}, all_terminologies: {name: value}}}
     __cache_items_lock = Lock()
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, main_handler, config: Dict[str, Any] = None):
+        self.__MAIN_HANDLER = main_handler
         self.__CONFIG = config if config else {}
 
         # NP Cache
@@ -66,7 +67,7 @@ class Cache:
         self.__CACHE_PERSIST = self.__CONFIG["cache"]["persist"]
         self.__CACHE_THRESHOLD = self.__CONFIG["cache"]["threshold_days"] * 86400
 
-        self.__load_cache() # TODO: Enable Cache later, after all kinds of requests are implemented
+        self.__load_cache()
 
 
     def get_item(self, kind_name, item_normalized):
@@ -100,8 +101,10 @@ class Cache:
         kind_cache = item_cache.get(kind_name["kind"], {})
         
         if kind_name["name"] in kind_cache:
+            self.__MAIN_HANDLER.sh_set_cache_hit(item_normalized)
             return kind_cache[kind_name["name"]]
         
+        self.__MAIN_HANDLER.sh_set_cache_miss(item_normalized)
         return False
 
     def set_item(self, kind_name: dict[str, str], item_normalized: str, value: Any) -> None:
@@ -158,16 +161,20 @@ class Cache:
 
         This module should be used for different purposes, so we persist cache directly here.
         """
-        logging.debug(f"cache_persist")
         
         self.__clean_cache() # Remove expired entries
         
         temp_cache = {}
         
         if self.__CACHE_ENABLED and self.__CACHE_PERSIST:
+            logging.debug(f"Cache: persist cache data to {self.__CACHE_FILENAME}")
+
             temp_cache = self.__cache_items
             with open(self.__CACHE_FILENAME, 'w', encoding='utf-8') as file:
                 json.dump(temp_cache, file, indent=4, ensure_ascii=False)
+
+        else: 
+            logging.debug(f"Cache: persist cache data skipped (disabled or persist disabled)")
 
     def __load_cache(self) -> None:
         """
@@ -185,8 +192,8 @@ class Cache:
             FileNotFoundError: If the cache file doesn't exist (handled gracefully)
             json.JSONDecodeError: If the cache file contains invalid JSON (handled gracefully)
         """
-        if not self.__CACHE_ENABLED or not self.__CACHE_PERSIST:
-            logging.debug("Cache loading skipped (disabled or persist disabled)")
+        if not self.__CACHE_ENABLED:
+            logging.debug("Cache loading disabled")
             return
         
         try:

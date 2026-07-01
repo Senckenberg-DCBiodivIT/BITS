@@ -55,8 +55,8 @@
         "gpt4all_local": "False"
     },
     "cache": {
-        "enabled": "false",
-        "persist": "false",
+        "enabled": "true",
+        "persist": "true",
         "threshold_days": 90  
     },
     "web_ui": {
@@ -66,5 +66,5 @@
         "open_browser": "True"
     },
     "persist_statistics": "true",
-    "max_threads": 4
+     "max_threads": 4
 }
